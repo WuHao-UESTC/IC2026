@@ -1,0 +1,250 @@
+//
+simulator lang=spectre insensitive=yes
+library coner
+
+
+//*********type**temp=25****************
+section tt
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rtmom
+include "./cr018gpii_v1d0.scs"  section=tt_disres
+include "./cr018gpii_v1d0.scs"  section=tt
+include "./cr018gpii_v1d0.scs"  section=tt_rfesd
+include "./cr018gpii_v1d0.scs"  section=tt_mim
+include "./cr018gpii_v1d0.scs"  section=tt_fmom
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=tt_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfmim
+include "./cr018gpii_v1d0.scs"  section=tt_res
+include "./cr018gpii_v1d0.scs"  section=tt_bip
+include "./cr018gpii_v1d0.scs"  section=tt_bip3
+include "./cr018gpii_v1d0.scs"  section=tt_dio3
+include "./cr018gpii_v1d0.scs"  section=tt_3v
+include "./cr018gpii_v1d0.scs"  section=tt_na
+include "./cr018gpii_v1d0.scs"  section=tt_dio
+include "./cr018gpii_v1d0.scs"  section=tt_dio_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfind
+include "./cr018gpii_v1d0.scs"  section=tt_dio_3m
+include "./cr018gpii_v1d0.scs"  section=tt_bbmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=tt_3vna
+include "./cr018gpii_v1d0.scs"  section=tt_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=tt_3m
+include "./cr018gpii_v1d0.scs"  section=tt_rfjvar
+include "./cr018gpii_v1d0.scs"  section=tt_rfmos
+include "./cr018gpii_v1d0.scs"  section=tt_rfsbd
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=tt_rfmos33
+include "./cr018gpii_v1d0.scs"  section=tt_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+endsection tt
+
+//*********fast best**temp=-25****************
+section ff
+include "./cr018gpii_v1d0.scs"  section=ff_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=ff_rfmvar
+include "./cr018gpii_v1d0.scs"  section=ff_rtmom
+include "./cr018gpii_v1d0.scs"  section=ff_disres
+include "./cr018gpii_v1d0.scs"  section=ff
+include "./cr018gpii_v1d0.scs"  section=ff_rfesd
+include "./cr018gpii_v1d0.scs"  section=ff_mim
+include "./cr018gpii_v1d0.scs"  section=ff_fmom
+include "./cr018gpii_v1d0.scs"  section=ff_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=ff_m
+include "./cr018gpii_v1d0.scs"  section=ff_rfmim
+include "./cr018gpii_v1d0.scs"  section=ff_res
+include "./cr018gpii_v1d0.scs"  section=ff_bip
+include "./cr018gpii_v1d0.scs"  section=ff_bip3
+include "./cr018gpii_v1d0.scs"  section=ff_dio3
+include "./cr018gpii_v1d0.scs"  section=ff_3v
+include "./cr018gpii_v1d0.scs"  section=ff_na
+include "./cr018gpii_v1d0.scs"  section=ff_dio
+include "./cr018gpii_v1d0.scs"  section=ff_dio_m
+include "./cr018gpii_v1d0.scs"  section=ff_rfind
+include "./cr018gpii_v1d0.scs"  section=ff_dio_3m
+include "./cr018gpii_v1d0.scs"  section=ff_bbmvar
+include "./cr018gpii_v1d0.scs"  section=ff_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=ff_3vna
+include "./cr018gpii_v1d0.scs"  section=ff_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=ff_3m
+include "./cr018gpii_v1d0.scs"  section=ff_rfjvar
+include "./cr018gpii_v1d0.scs"  section=ff_rfmos
+include "./cr018gpii_v1d0.scs"  section=ff_rfsbd
+include "./cr018gpii_v1d0.scs"  section=ff_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=ff_rfmos33
+include "./cr018gpii_v1d0.scs"  section=ff_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+endsection ff
+
+//*********slow worst**temp=75****************
+section ss
+include "./cr018gpii_v1d0.scs"  section=ss_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=ss_rfmvar
+include "./cr018gpii_v1d0.scs"  section=ss_rtmom
+include "./cr018gpii_v1d0.scs"  section=ss_disres
+include "./cr018gpii_v1d0.scs"  section=ss
+include "./cr018gpii_v1d0.scs"  section=ss_rfesd
+include "./cr018gpii_v1d0.scs"  section=ss_mim
+include "./cr018gpii_v1d0.scs"  section=ss_fmom
+include "./cr018gpii_v1d0.scs"  section=ss_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=ss_m
+include "./cr018gpii_v1d0.scs"  section=ss_rfmim
+include "./cr018gpii_v1d0.scs"  section=ss_res
+include "./cr018gpii_v1d0.scs"  section=ss_bip
+include "./cr018gpii_v1d0.scs"  section=ss_bip3
+include "./cr018gpii_v1d0.scs"  section=ss_dio3
+include "./cr018gpii_v1d0.scs"  section=ss_3v
+include "./cr018gpii_v1d0.scs"  section=ss_na
+include "./cr018gpii_v1d0.scs"  section=ss_dio
+include "./cr018gpii_v1d0.scs"  section=ss_dio_m
+include "./cr018gpii_v1d0.scs"  section=ss_rfind
+include "./cr018gpii_v1d0.scs"  section=ss_dio_3m
+include "./cr018gpii_v1d0.scs"  section=ss_bbmvar
+include "./cr018gpii_v1d0.scs"  section=ss_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=ss_3vna
+include "./cr018gpii_v1d0.scs"  section=ss_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=ss_3m
+include "./cr018gpii_v1d0.scs"  section=ss_rfjvar
+include "./cr018gpii_v1d0.scs"  section=ss_rfmos
+include "./cr018gpii_v1d0.scs"  section=ss_rfsbd
+include "./cr018gpii_v1d0.scs"  section=ss_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=ss_rfmos33
+include "./cr018gpii_v1d0.scs"  section=ss_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+endsection ss
+
+//*********coner of moten calo****************
+section mc
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar
+include "./cr018gpii_v1d0.scs"  section=mc_rtmom
+include "./cr018gpii_v1d0.scs"  section=mc_disres
+include "./cr018gpii_v1d0.scs"  section=mc
+include "./cr018gpii_v1d0.scs"  section=tt_rfesd
+include "./cr018gpii_v1d0.scs"  section=mc_mim
+include "./cr018gpii_v1d0.scs"  section=mc_fmom
+include "./cr018gpii_v1d0.scs"  section=mc_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=mc_m
+include "./cr018gpii_v1d0.scs"  section=mc_rfmim
+include "./cr018gpii_v1d0.scs"  section=mc_res
+include "./cr018gpii_v1d0.scs"  section=mc_bip
+include "./cr018gpii_v1d0.scs"  section=tt_bip3
+include "./cr018gpii_v1d0.scs"  section=tt_dio3
+include "./cr018gpii_v1d0.scs"  section=mc_3v
+include "./cr018gpii_v1d0.scs"  section=mc_na
+include "./cr018gpii_v1d0.scs"  section=tt_dio
+include "./cr018gpii_v1d0.scs"  section=tt_dio_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfind
+include "./cr018gpii_v1d0.scs"  section=tt_dio_3m
+include "./cr018gpii_v1d0.scs"  section=mc_bbmvar
+include "./cr018gpii_v1d0.scs"  section=mc_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=mc_3vna
+include "./cr018gpii_v1d0.scs"  section=tt_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=mc_3m
+include "./cr018gpii_v1d0.scs"  section=tt_rfjvar
+include "./cr018gpii_v1d0.scs"  section=mc_rfmos
+include "./cr018gpii_v1d0.scs"  section=mc_rfsbd
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=mc_rfmos33
+include "./cr018gpii_v1d0.scs"  section=mc_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfmos
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfmos33
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfmim
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfres_rpo 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rfres_hri 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rffmom 
+include "./cr018gpii_v1d0.scs"  section=stat_mis
+include "./cr018gpii_v1d0.scs"  section=stat_mis_3v
+include "./cr018gpii_v1d0.scs"  section=stat_mis_m
+include "./cr018gpii_v1d0.scs"  section=stat_mis_3m 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_na 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_3vna 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_bip 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_res 
+include "./cr018gpii_v1d0.scs"  section=stat_disres_local 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_mim
+include "./cr018gpii_v1d0.scs"  section=stat_mis_rtmom 
+include "./cr018gpii_v1d0.scs"  section=stat_mis_fmom 
+include "./cr018gpii_v1d0.scs"  section=stat
+include "./cr018gpii_v1d0.scs"  section=stat_res
+include "./cr018gpii_v1d0.scs"  section=stat_mim
+include "./cr018gpii_v1d0.scs"  section=stat_mom
+include "./cr018gpii_v1d0.scs"  section=stat_disres
+endsection mc
+
+section sf
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rtmom
+include "./cr018gpii_v1d0.scs"  section=tt_disres
+include "./cr018gpii_v1d0.scs"  section=sf
+include "./cr018gpii_v1d0.scs"  section=tt_rfesd
+include "./cr018gpii_v1d0.scs"  section=tt_mim
+include "./cr018gpii_v1d0.scs"  section=tt_fmom
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=tt_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfmim
+include "./cr018gpii_v1d0.scs"  section=tt_res
+include "./cr018gpii_v1d0.scs"  section=tt_bip
+include "./cr018gpii_v1d0.scs"  section=tt_bip3
+include "./cr018gpii_v1d0.scs"  section=tt_dio3
+include "./cr018gpii_v1d0.scs"  section=tt_3v
+include "./cr018gpii_v1d0.scs"  section=tt_na
+include "./cr018gpii_v1d0.scs"  section=tt_dio
+include "./cr018gpii_v1d0.scs"  section=tt_dio_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfind
+include "./cr018gpii_v1d0.scs"  section=tt_dio_3m
+include "./cr018gpii_v1d0.scs"  section=tt_bbmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=tt_3vna
+include "./cr018gpii_v1d0.scs"  section=tt_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=tt_3m
+include "./cr018gpii_v1d0.scs"  section=tt_rfjvar
+include "./cr018gpii_v1d0.scs"  section=sf_rfmos
+include "./cr018gpii_v1d0.scs"  section=tt_rfsbd
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=sf_rfmos33
+include "./cr018gpii_v1d0.scs"  section=tt_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+endsection sf
+
+section fs
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_sa
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rtmom
+include "./cr018gpii_v1d0.scs"  section=tt_disres
+include "./cr018gpii_v1d0.scs"  section=fs
+include "./cr018gpii_v1d0.scs"  section=tt_rfesd
+include "./cr018gpii_v1d0.scs"  section=tt_mim
+include "./cr018gpii_v1d0.scs"  section=tt_fmom
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_rpo
+include "./cr018gpii_v1d0.scs"  section=tt_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfmim
+include "./cr018gpii_v1d0.scs"  section=tt_res
+include "./cr018gpii_v1d0.scs"  section=tt_bip
+include "./cr018gpii_v1d0.scs"  section=tt_bip3
+include "./cr018gpii_v1d0.scs"  section=tt_dio3
+include "./cr018gpii_v1d0.scs"  section=tt_3v
+include "./cr018gpii_v1d0.scs"  section=tt_na
+include "./cr018gpii_v1d0.scs"  section=tt_dio
+include "./cr018gpii_v1d0.scs"  section=tt_dio_m
+include "./cr018gpii_v1d0.scs"  section=tt_rfind
+include "./cr018gpii_v1d0.scs"  section=tt_dio_3m
+include "./cr018gpii_v1d0.scs"  section=tt_bbmvar
+include "./cr018gpii_v1d0.scs"  section=tt_rfres_hri
+include "./cr018gpii_v1d0.scs"  section=tt_3vna
+include "./cr018gpii_v1d0.scs"  section=tt_dio_dnw
+include "./cr018gpii_v1d0.scs"  section=tt_3m
+include "./cr018gpii_v1d0.scs"  section=tt_rfjvar
+include "./cr018gpii_v1d0.scs"  section=fs_rfmos
+include "./cr018gpii_v1d0.scs"  section=tt_rfsbd
+include "./cr018gpii_v1d0.scs"  section=tt_rfmvar_33
+include "./cr018gpii_v1d0.scs"  section=fs_rfmos33
+include "./cr018gpii_v1d0.scs"  section=tt_rffmom
+include "./cr018gpii_v1d0.scs"  section=stat_noise
+endsection fs
+
+endlibrary coner

@@ -1,0 +1,55 @@
+\chapter{template}
+This is the template of the chapter in split file.
+
+\section{s1}
+This is a section.
+
+\subsection{sub1}
+This is a subsection.
+
+% equation
+\begin{equation}
+f_n(\bm{r})=
+\begin{cases}
+\frac{l_n}{2A_n^+}\bm{\rho}_n^+=\frac{l_n}{2A_n^+}(\bm{r}-\bm{r}_+)&\bm{r}\in T_n^+\\
+\frac{l_n}{2A_n^-}\bm{\rho}_n^-=\frac{l_n}{2A_n^-}(\bm{r}_--\bm{r})&\bm{r}\in T_n^-\\
+0&\text{otherwise}
+\end{cases}
+\end{equation}
+
+% figure
+\begin{figure}[h]
+	\includegraphics{pica.pdf}
+	\caption{RWG 基函数几何参数示意图}
+	\label{pica}
+\end{figure}
+
+% 2 figure
+\begin{figure}[h]
+\subfloat[]{
+	\label{picb}
+	\includegraphics[width=7.3cm]{picb.pdf}
+}
+\subfloat[]{
+	\label{picc}
+	\includegraphics[width=6.41cm]{picc.pdf}
+}
+\caption{调制高斯脉冲时域与频率波形，时域阻抗元素的存储技术也是时间步进算法并行化的关键技术之一。(a)调制高斯脉冲信号的时域波形；(b)调制高斯脉冲信号的频域波形}
+\label{fig1}
+\end{figure}
+
+% veriloga
+\begin{veriloga}[htbp]
+\caption{Ideal Comparator for 14-bit SAR ADC}
+\begin{lstlisting}
+analog begin
+    @(cross(V(in_p, in_n), 0))
+        out = (V(in_p) > V(in_n));
+end
+\end{lstlisting}
+\end{veriloga}
+
+% footnote
+\footnote{脚注序号“\ding{172}，……，\ding{180}”的字体是“正文”，不是“上标”，序号与脚注内容文字之间空1个半角字符，脚注的段落格式为：单倍行距，段前空0磅，段后空0磅，悬挂缩进1.5字符；中文用宋体，字号为小五号，英文和数字用Times New Roman字体，字号为9磅；中英文混排时，所有标点符号（例如逗号“，”、括号“（）”等）一律使用中文输入状态下的标点符号，但小数点采用英文状态下的样式“.”。}
+（例如：FEKO、Ansys 等）的核心算法。由文献\cite{feng997he,clerc2010discrete,xiao2012yi}可知
+

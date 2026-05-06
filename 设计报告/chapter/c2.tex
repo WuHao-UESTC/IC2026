@@ -1,0 +1,127 @@
+\chapter{模拟前端(AFE)架构分析}
+本章旨在对面向工业信号检测的 14 位模拟前端（AFE）系统进行宏观架构层面的分析与设计论证。
+
+下文将从信号链路流向、系统能效折中、增益与带宽分配以及严苛的 14 位噪声预算四个维度，详细阐述本系统架构设计的合理性与先进性。
+\section{整体信号链路规划}
+本设计的模拟前端主要负责将光电二极管捕捉到的微弱、宽频光信号进行低噪声放大、精准的电平平移与抗混叠滤波，
+最终驱动后级的 14-bit SAR ADC 进行高精度量化。
+
+系统的整体框图如图 \ref{fig:block.system} 所示。
+% figure
+\begin{figure}[h]
+	\includegraphics{block.system.png}
+	\caption{系统整体框图}
+	\label{fig:block.system}
+\end{figure}
+
+对其中涉及到的重要系统层级进行以下简要说明
+\begin{enumerate}
+\item TIA 模块： 作为系统的第一级，将光电二极管捕捉到的微弱、宽频单端光信号进行低噪声放大与电平平移，并转化为全差分信号。
+\item PGA 模块： 采用 R-2R 网络实现。支持从 $\frac{1}{255}$ 到 $255$ 倍的分数阶增益调节，确保不同距离、不同强度的声源信号均能完美映射至 ADC 约 $3 \text{ V}_{\text{pp}}$ 的差分满量程范围内
+\item CDAC 模块： 采用 两组 7 位 电容阵列拼接，后级连接实现。用以产生高分辨率的差分电压输出。
+\item SAR Logic模块： 该系统的数字控制模块，控制 SAR ADC 的采样、量化、比较等操作。
+\end{enumerate}
+
+\section{功耗分配与系统能效折中}
+在 180nm CMOS 工艺下实现 14-bit 精度与 700 kHz 有效带宽，不可避免地需要面临功耗与底噪、速度之间的严苛折中。
+本系统的总静态功耗预算控制在约 $80 \text{ mW}$ 以内。
+
+接下来对系统中各个组成部分的主要约束进行分析以进行尽可能合理的功耗预分配。
+\begin{enumerate}
+\item TIA 模块： 作为系统的第一级，其噪声性能对系统整体的噪声预算有重要影响。同时需要将古高带宽与高增益，因此不可避免地占用系统很大部分的功耗。
+\item PGA 模块： 采用 R-2R 网络实现。考虑到后级 14-bit SAR ADC 的 CDAC 阵列呈现较重的容性负载，需要重点关注PGA 输出级需的摆率（SR）与闭环带宽。
+\item CDAC 模块： 采用 两组 7 位 电容阵列拼接实现。该层级中电容与比较器的失配（mismatch）对系统的影响极大，应当重点关注其输出电压的精度与稳定性。但是由于该模块由时序逻辑控制，
+                  静态功耗可以做到极低。
+\end{enumerate}
+
+综合以上考量，本系统的功耗分配如下：ADC前级的各级放大器，为保证其带宽与增益，占用系统约70mW功耗。其中TIA消耗约50mW，PGA消耗约20mW。 ADC部分主要
+功耗消耗由采样期间的比较器与采样开关组成。可以在不损耗带宽的前提下将其平均动态功耗控制在10mW以内。
+
+\section{系统级增益分配}
+考虑增益分配问题时，应当从系统总增益与每一级的合理增益两个方面进行考虑。
+
+\subsection{可变增益范围与固定增益计算}
+首先，从系统需要的增益范围开始分析。要将0.1n~1uA的光电流放大至可供ADC精确读取的范围（即$V_{cm} = \frac{1}{2} V_{pp} = 1.65V$），该系统的可调节增益为$10^4$。
+该范围可由基于R-2R网络的PGA实现。在反馈电阻$R_f$与  电阻$R_g$中接入8bit电阻网络，理论上可以实现$\frac{1}{255} \sim 255$倍的可调增益范围。
+因此，将10nA的光电流输入作为基准，令此时PGA增益为1，经过多级放大后输入ADC电压为1V。可以得到所需的固定增益：
+% equation
+\begin{equation}
+A_{fixed} = \frac{1V}{10nA} = 10^8  = 180dB
+\end{equation}
+
+\subsection{基于增益带宽积的增益分配}
+如图\ref{fig:block.system}所示， 在CDAC前级信号经历了4级放大：（1）TIA级，基于单端输出的二级OTA运放；（2）级联同/反相放大器，基于单端输出的二级OTA运放；
+（3）单端转差分模块，具有固定的2倍增益（4）PGA级，基于Cascode二级全差分运放.
+
+在本次系统中，我们使用的单端输出二级OTA运放与二级全差分运放的增益带宽积（GBW）均在$100MHz$左右。，为保证CDAC前端至少具有1MHz的带宽，单级放大器的增益最大为
+\begin{equation}
+A_{max} = \frac{GBW}{Bandwidth} = \frac{100MHz}{1MHz} = 100
+\end{equation}
+其中由于TIA为跨阻放大器，其增益可以接近带宽。综合以上考虑，本系统的增益分配如下：
+
+\begin{table}[htbp]
+  \centering
+  \caption{信号链路各级增益配置}
+  \begin{tabular}{lc}
+    \toprule
+    Stage & Gain \\
+    \midrule
+    TIA & $100\,\text{k}\Omega$ \\
+    第一级反相放大器 & $100$ \\
+    第二级反相放大器 & $50$ \\
+    单端转差分 & $2$ \\
+    \midrule
+    \multicolumn{2}{c}{总固定增益：$10^9$，即 $180\,\text{dB}$} \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:stage_gain}
+\end{table}
+
+\section{频率响应与系统级带宽分配}
+为了准确捕获超声频段的故障信号，系统整体的有效带宽被设定为$700\,\text{kHz}$。
+由于本系统的模拟前端采用了多级放大器级联的架构（如图\ref{fig:block.system}所示），
+系统的总带宽不可避免地会受到多级主极点（Dominant Pole）叠加造成的带宽收缩效应（Bandwidth Shrinkage）影响。
+
+\subsection{级联带宽的理论推导}
+根据上一节的增益分配设计，核心运放的增益带宽积（GBW）约为$100\,\text{MHz}$。我们可以逐级计算各模块的闭环带宽（设为$f_{-3\text{dB}, i}$）：
+\begin{enumerate}
+    \item \textbf{TIA 级：} 跨阻增益为$100\,\text{k}\Omega$，通过配置反馈电容$C_f$，将其闭环带宽设计在$1\,\text{MHz}$，即$f_{-3\text{dB}, 1} = 1\,\text{MHz}$。
+    \item \textbf{第一级反相放大器：} 闭环增益为$100$，根据$GBW$守恒，其带宽为$f_{-3\text{dB}, 2} = \frac{100\,\text{MHz}}{100} = 1\,\text{MHz}$。
+    \item \textbf{第二级反相放大器：} 闭环增益为$50$，其带宽为$f_{-3\text{dB}, 3} = \frac{100\,\text{MHz}}{50} = 2\,\text{MHz}$。
+    \item \textbf{PGA 与缓冲器 (Buffer) 级：} 单端转差分与PGA级在此固定高增益模式下主要作为信号调理与低增益衰减使用，且Buffer提供单位增益驱动，这几级的局部带宽远大于$2\,\text{MHz}$，其极点对系统主频响影响较小。
+\end{enumerate}
+
+对于多级近似单极点系统级联，其整体系统的等效带宽$BW_{\text{sys}}$可以通过以下经验公式估算：
+\begin{equation}
+    BW_{\text{sys}} \approx \frac{1}{\sqrt{\sum_{i=1}^{n} \left(\frac{1}{f_{-3\text{dB}, i}}\right)^2}}
+\end{equation}
+代入本系统的主导极点（$1\,\text{MHz}$、$1\,\text{MHz}$与$2\,\text{MHz}$），可以计算得到：
+\begin{equation}
+    BW_{\text{sys}} \approx \frac{1}{\sqrt{\left(\frac{1}{1}\right)^2 + \left(\frac{1}{1}\right)^2 + \left(\frac{1}{2}\right)^2}} = \frac{1}{\sqrt{2.25}} \approx 0.667\,\text{MHz} \approx 670\,\text{kHz}
+\end{equation}
+经过级联收缩后的理论计算值（$670\,\text{kHz}$）与系统设计的总体目标带宽（$700\,\text{kHz}$）高度吻合。这证明了采用两级OTA分配$100$倍与$50$倍增益的架构不仅满足了极高的总增益需求，同时也精准把控了系统的高频响应截止点，起到了天然的抗混叠滤波（Anti-aliasing）作用。
+
+\section{噪声预算}
+在14-bit高精度数据采集系统中，模拟前端的本底噪声（Noise Floor）是决定系统能否达到设计分辨率的根本物理限制。为了确保有效信号不被噪声淹没，必须进行严格的系统级噪声预算与约束。
+
+\subsection{ADC 量化噪声与系统本底噪声上限}
+系统ADC的输入满量程差分电压为$3\,\text{V}_{\text{pp}}$。对于14位分辨率，其最低有效位（LSB）的电压幅度为：
+\begin{equation}
+    1\,\text{LSB} = \frac{3\,\text{V}}{2^{14}} \approx 183.1\,\mu\text{V}
+\end{equation}
+理想14-bit SAR ADC固有的量化噪声有效值（RMS）为：
+\begin{equation}
+    V_{\text{q,rms}} = \frac{1\,\text{LSB}}{\sqrt{12}} \approx 52.8\,\mu\text{V}_{\text{rms}}
+\end{equation}
+为了保证模拟前端的晶体管热噪声和闪烁噪声不恶化ADC的整体信噪比（SNR），工程上要求AFE输出端（即ADC输入端）的综合积分噪声必须小于量化噪声。本设计留出了适当裕量，将AFE链路的总等效输出噪声上限约束为$\le 45\,\mu\text{V}_{\text{rms}}$。
+
+\subsection{等效输入噪声与功耗倾斜分析}
+由于该系统具有极高的前向增益（总固定增益达$10^9\,\Omega$），根据Friis级联噪声公式，系统总等效输入噪声电流$I_{\text{n,in}}^2$几乎完全由第一级TIA决定：
+\begin{equation}
+    I_{\text{n,in}}^2 \approx I_{\text{n,TIA}}^2 + \frac{V_{\text{n,A1}}^2}{R_{\text{T}}^2} + \frac{V_{\text{n,A2}}^2}{(R_{\text{T}} \cdot A_{\text{v1}})^2} + \dots \approx I_{\text{n,TIA}}^2
+\end{equation}
+这意味着，后级（A1、A2、PGA等）产生的噪声会被前级的高增益除以巨大的系数，折算到输入端后可忽略不计。
+
+因此，TIA级成为了整个系统噪声性能的绝对瓶颈。为了在$700\,\text{kHz}$的积分带宽内将等效输入噪声电流压制在极限水平，必须极大地降低TIA输入对管的等效热噪声电压。根据MOS管热噪声公式$V_{\text{n}}^2 \propto \frac{1}{g_{\text{m}}}$，降低噪声的唯一途径是显著提升输入对管的跨导$g_{\text{m}}$。
+
+这就从理论上解释并支撑了本设计在第2.1节中提出的功耗预分配策略：\textbf{为TIA模块分配高达$50\,\text{mW}$的静态功耗}。通过大电流偏置和增大输入管尺寸，最大化$g_{\text{m}}$，从而在物理层面换取了14-bit系统所必需的极低噪声底，实现了噪声与功耗之间合理的工程折中。

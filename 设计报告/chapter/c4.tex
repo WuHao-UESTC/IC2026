@@ -1,0 +1,114 @@
+
+% ----------------------------------------
+% 跨阻放大器（TIA）
+% ----------------------------------------
+\chapter{跨阻放大器（TIA）}
+
+\section{TIA 设计挑战与指标分解}
+跨阻放大器（TIA）位于整个 14-bit 模拟前端的最前端，负责将传感器输出的微弱电流信号无失真地转换为电压信号。
+在实际应用中，工业传感器等效为一个并联了寄生电容（$C_{\text{in}}$）的电流源。
+当 TIA 接入传感器时，$C_{\text{in}}$ 会与反馈电阻 $R_f$ 在系统的环路增益中引入一个低频主极点。
+如果不加以干预，该极点不仅会严重削减系统带宽，还会侵蚀相位裕度（Phase Margin），导致频响曲线出现峰化（Peaking）甚至引发系统级自激振荡。
+
+结合 14-bit 精度及后级 PGA 的驱动需求，TIA 模块的核心设计指标分解如下：
+\begin{table}[H]
+    \centering
+    \caption{TIA 模块核心设计指标分解}
+    \begin{tabular}{@{}llp{8cm}@{}}
+        \toprule
+        \textbf{指标项} & \textbf{目标参数} & \textbf{设计考量与备注} \\ 
+        \midrule
+        跨阻增益 & $100\,\text{k}\Omega$ ($100\,\text{dB}\Omega$) & 将微弱电流转换为后续级可处理的电压电平 \\
+        闭环带宽 & $\ge 1\,\text{MHz}$ & 为系统多级联后最终的 $700\,\text{kHz}$ 总体带宽留出收缩裕量 \\
+        输入等效噪声 & 总积分噪声 $\le 45\,\mu\text{V}_{\text{rms}}$ & 极其严苛的底噪限制，以确保有效信号不被淹没，满足 14-bit 系统精度 \\ 
+        \bottomrule
+    \end{tabular}
+    \label{tab:tia_spec_breakdown}
+\end{table}
+
+\section{核心 OTA 拓扑及其关键指标}
+本设计采用经典的二级运算放大器（Two-Stage OTA）作为 TIA 的核心增益模块。
+第一级采用 PMOS 差分输入对管以匹配 NMOS 电流镜负载，
+旨在利用 PMOS 器件较低的闪烁噪声（$1/f$ 噪声）特性。第二级采用 NMOS 共源放大器，
+以提供足够大的输出摆幅和开环增益。
+
+为了确保 TIA 在闭环反馈下的稳定性，电路引入了密勒补偿电容（Miller Compensation）
+及零点消除电阻，将非主极点推向高频，从而获得极佳的相位裕度。
+核心二级OTA的内部拓扑选择如图 \ref{fig:sch.twostageota} 所示。
+% figure
+\begin{figure}[h]
+    \includegraphics[width=14cm]{sch.twostageota.png}
+    \caption{核心二级OTA的内部拓扑选择}
+    \label{fig:sch.twostageota}
+\end{figure}
+
+针对 14-bit 高精度系统的需求，该 OTA 的设计目标指标如表 \ref{tab:ota_specs} 所示：
+
+\begin{table}[h]
+\centering
+\caption{核心二级 OTA 关键设计指标}
+\label{tab:ota_specs}
+\begin{tabular}{@{}lll@{}}
+\toprule
+参数项目 (Parameter)           & 设计目标值 (Spec)        & 单位 (Unit) \\ \midrule
+供电电压 ($V_{DD}$)            & 3.3                     & V           \\
+直流开环增益 ($A_{v0}$)         & $> 80$                  & dB          \\
+增益带宽积 (GBW)               & $> 100$                 & MHz         \\
+相位裕度 (Phase Margin)        & $> 80$                  & degree      \\
+输入共模范围 (ICMR)            & 0 $\sim$ 2.1            & V           \\
+输出摆幅 (Output Swing)        & 0.5 $\sim$ 2.8          & V           \\
+单位增益频率下的等效输入噪声密度  & $< 5$                   & nV/$\sqrt{\text{Hz}}$ \\
+静态功耗 (Static Power)        & $\approx 50$            & mW          \\ \bottomrule
+\end{tabular}
+\end{table}
+
+\section{噪声分析}
+\subsection{大电流偏置的理论支撑}
+为了将系统的等效输入热噪声压制在极限水平，本设计为 TIA 模块分配了高达约 $50\,\text{mW}$ 的
+静态功耗预算（对应约 $15\,\text{mA}$ 的尾电流）。根据单管 MOS 热噪声电压谱密度公式：
+\begin{equation}
+    V_{\text{n,th}}^2 = \frac{8kT}{3g_m}
+\end{equation}
+可以看出，要降低输入等效热噪声，唯有显著提升输入对管的跨导 $g_m$。在饱和区，$g_m \propto \sqrt{I_D \cdot \frac{W}{L}}$，因此巨大的静态电流配合大尺寸的输入管，使 $g_m$ 达到了极高的水平，从而在物理层面上换取了 14-bit 精度系统所需的低噪声底。
+
+\subsection{整体等效输入噪声模型}
+TIA 的总等效输入噪声电流谱密度 $S_{ni}(f)$ 由反馈电阻 $R_f$ 的热噪声、运放等效输入电压噪声 $e_{ni}$ 以及运放等效输入电流噪声 $i_{ni}$ 共同组成。其完整解析式如下：
+\begin{equation}
+    S_{ni}(f) = \frac{4kT}{R_f} + i_{ni}^2 + e_{ni}^2 \left( \frac{1}{R_f^2} + (2\pi f C_{in})^2 \right)
+\end{equation}
+其中：
+\begin{enumerate}
+    \item $\frac{4kT}{R_f}$ 为反馈电阻的热噪声贡献，随 $R_f$ 增大而减小。
+    \item $e_{ni}^2 \approx 2 \cdot \frac{8kT}{3g_{m1}}$ 为第一级差分对管贡献的电压噪声。
+    \item $(2\pi f C_{in})^2$ 项表明，随着频率升高，传感器的输入寄生电容 $C_{in}$ 会将运放的电压噪声转化为巨大的电流噪声分量（即噪声增益在高频处隆起）。
+\end{enumerate}
+
+在系统总带宽 $BW$ 内的总积分噪声电流有效值 $I_{n,rms}$ 为：
+\begin{equation}
+    I_{n,rms} = \sqrt{\int_{0}^{BW} S_{ni}(f) df}
+\end{equation}
+通过增大 $g_{m1}$（牺牲功耗）和优化 $R_f$ 选值，本设计确保了 $I_{n,rms}$ 远小于 ADC 的量化噪声电平（$1\,\text{LSB}$），为 14-bit 系统的 ENOB 提供了充足的裕量。
+
+\section{闭环补偿策略与反馈参数设计}
+为实现设计目标的低频跨阻增益，选取反馈电阻 $R_f = 100\,\text{k}\Omega$。
+为抵消传感器寄生电容 $C_{\text{in}}$ 带来的极点影响，保证环路稳定
+，在 $R_f$ 两端并联了相位补偿电容 $C_f$。TIA电路设计如图 \ref{fig:sch.tia} 所示。
+% figure
+\begin{figure}[h]
+    \includegraphics{sch.tia.png}
+    \caption{TIA 电路设计}
+    \label{fig:sch.tia}
+\end{figure}
+
+引入 $C_f$ 后，系统的闭环传递函数可近似为一个二阶系统，其主极点频率 $f_{-3\text{dB}}$ 
+主要由反馈网络的时间常数决定：
+\begin{equation}
+    f_{-3\text{dB}} \approx \frac{1}{2\pi R_f C_f}
+\end{equation}
+本设计选取 $C_f = 1\,\text{pF}$。代入理论公式验算：
+\begin{equation}
+    f_{-3\text{dB}} = \frac{1}{2\pi \times 10^5\,\Omega \times 10^{-12}\,\text{F}} \approx 1.59\,\text{MHz}
+\end{equation}
+理论带宽 $1.59\,\text{MHz}$ 完美满足了 TIA 单级 $\ge 1\,\text{MHz}$ 的目标。
+此配置不仅确保了系统具有充足的相位裕度以获得最平坦的巴特沃斯（Butterworth）响应，
+还限制了过高的带宽，起到了初级抗混叠（Anti-aliasing）滤波的作用。

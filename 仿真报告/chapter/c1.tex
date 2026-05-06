@@ -1,0 +1,76 @@
+\chapter{仿真环境与工具设置}
+在进行高精度 14-bit 模拟前端（AFE）及 SAR ADC 的电路设计中，仿真环境的严谨性和覆盖度直接决定了设计流片后的良率与工业场景下的鲁棒性。
+本章将详细说明所使用的 EDA 仿真工具、工艺库，以及为了充分验证电路可靠性而定义的多种工艺角（PVT Corners）与蒙特卡洛（Monte Carlo）
+联合仿真条件。
+
+\section{仿真工具与工艺库说明}
+本设计的电路原理图输入、核心模块性能仿真以及版图后仿真验证均在 Cadence Virtuoso 平台上完成。
+\begin{itemize}
+    \item \textbf{仿真器 (Simulator):} 采用 Cadence Virtuoso AMS Designer (配合底层 Spectre 仿真引擎)。AMS 仿真器能够高效地处理包含模拟前端（如 TIA、PGA、动态比较器）与数字控制逻辑（如 SAR 逻辑、时序控制）的数模混合信号系统，提供高精度的瞬态建立分析与噪声分析。
+    \item \textbf{工艺库 (Process Design Kit, PDK):} 采用 TSMC $180\,\text{nm}$ CMOS 混合信号工艺库（\texttt{tsmc18}）。该工艺在工业控制、高精度检测等数模混合芯片领域应用广泛且成熟，能够提供精确的器件寄生参数、电阻/电容失配模型及低频闪烁噪声（$1/f$ Noise）模型。
+    \item \textbf{核心模型文件:} 仿真过程中直接调用该 PDK 目录下的 \texttt{spectre.scs} 模型文件进行物理特性推导。
+    \item \textbf{标称工作条件:} 根据系统级指标规划，标称供电电压（VDD）统一设定为 $3.3\,\text{V}$，标称室温设定为 $25^\circ\text{C}$。
+\end{itemize}
+
+\section{仿真工艺角（Corner）定义}
+由于半导体制造过程中的随机波动以及实际工业探测环境的恶劣性，芯片内部器件的载流子迁移率（Process）、
+供电电压（Voltage）以及工作环境温度（Temperature）会发生不同程度的偏移。
+为了确保本设计在任何极端边界条件下都能满足 $700\,\text{kHz}$ 的系统带宽及 14-bit 精度，
+我们分别定义了常规的“极限工艺角（PVT Corners）”与用于评估统计失配的“蒙特卡洛（Monte Carlo）PVT 角”。
+
+\subsection{标准 PVT 工艺角配置}
+依据工业级可靠性要求，环境温度覆盖了 $-40^\circ\text{C} \sim 125^\circ\text{C}$，
+电源电压波动允许范围设定为约 $\pm 10\%$（即 $3.0\,\text{V} \sim 3.6\,\text{V}$）。
+结合不同器件类型的速度漂移（TT, SS, FF, FS, SF），系统提取并定义了以下 9 种代表性的标准 PVT 仿真工艺角，
+详情如表 \ref{tab:standard_corners} 所示。
+
+\begin{table}[H]
+    \centering
+    \caption{标准 PVT 仿真工艺角配置表}
+    \begin{tabular}{lcccl}
+        \toprule
+        \textbf{Corner 名称} & \textbf{工艺段 (Process)} & \textbf{电压 (V)} & \textbf{温度 ($^\circ$C)} & \textbf{测试侧重与评估场景} \\
+        \midrule
+        Cold & TT (典型) & 3.3 & -40 & 典型工艺下的低温冷启动响应 \\
+        Hot & TT (典型) & 3.3 & 125 & 典型工艺下的高温热稳定性 \\
+        Asym\_FS & FS (快N慢P) & 3.3 & 25 & 评估PMOS与NMOS不对称的影响 \\
+        Asym\_SF & SF (慢N快P) & 3.3 & 25 & 评估偏置电路在不对称工艺下的电流偏移 \\
+        BC (Best Case) & FF (最快) & 3.6 & -40 & 驱动最强情况 \\
+        WorstCase & SS (最慢) & 3.3 & -40 & 芯片速度较慢，评估额定电压下的带宽衰减 \\
+        WCLowtemp & SS (最慢) & 3.0 & -40 & 速度极恶劣情况 \\
+        MaxPower & FF (最快) & 3.3 & 125 & 评估标称电压及高温下的发热与动态功耗 \\
+        MaxLeakage & FF (最快) & 3.6 & 125 & 功耗极恶劣情况 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:standard_corners}
+\end{table}
+上述工艺角的组合有效覆盖了电路的脆弱点。例如，可以确保 PGA 与比较器在 \texttt{WCLowtemp} 等速度恶劣情况下建立时间（Settling Time）依然满足 $1\,\text{MS/s}$ 采样率的时序要求；同时保证在 \texttt{MaxLeakage} 下，系统的总功耗未超出预设预算。
+
+\subsection{蒙特卡洛 (Monte Carlo) 联合 PVT 仿真配置}
+对于 14-bit 高精度数据转换系统而言，运算放大器的随机失调（Random Offset）以及 SAR ADC 内部电容阵列（CDAC）的匹配度直接决定了系统的有效位数（ENOB）。传统的宏观 PVT 工艺角难以反映同片内局部器件的微观差异。
+因此，本设计特别引入了 Monte Carlo (MC) 模型与 PVT 边界条件相交叉的严苛仿真集（见表 \ref{tab:mc_corners}）。通过调用 \texttt{spectre.scs} 中的 \texttt{mc} 统计学段，在不同的极端电压与温度下进行随机抽样验证。
+
+\begin{table}[H]
+    \centering
+    \caption{蒙特卡洛 (Monte Carlo) 与 PVT 联合仿真角配置}
+    \begin{tabular}{lccc}
+        \toprule
+        \textbf{Corner 名称} & \textbf{模型调用状态} & \textbf{电压 (V)} & \textbf{温度 ($^\circ$C)} \\
+        \midrule
+        MC\_Nominal & mc (包含失配统计模型) & 3.3 & 25 \\
+        MC\_HvTt & mc (包含失配统计模型) & 3.6 & 25 \\
+        MC\_HvLt & mc (包含失配统计模型) & 3.6 & -40 \\
+        MC\_HvHt & mc (包含失配统计模型) & 3.6 & 125 \\
+        MC\_LvTt & mc (包含失配统计模型) & 3.0 & 25 \\
+        MC\_LvLt & mc (包含失配统计模型) & 3.0 & -40 \\
+        MC\_LvHt & mc (包含失配统计模型) & 3.0 & 125 \\
+        \bottomrule
+    \end{tabular}
+    \label{tab:mc_corners}
+\end{table}
+通过上述 7 组 MC\_PVT 配置，我们能够在评估 CDAC 阵列失配引起的 DNL/INL 以及 AFE 链路输出失调标准差（$1\sigma \sim 3\sigma$ 分布）时，进一步叠加高低压（$3.0\,\text{V} / 3.6\,\text{V}$）与高低温漂移（$-40^\circ\text{C} / 125^\circ\text{C}$）带来的非线性恶化效应，最大程度保障了芯片流片后的实际良率。
+\begin{figure}[h]
+	\includegraphics{block.system.png}
+	\caption{系统框图}
+	\label{fig:block.system}
+\end{figure}

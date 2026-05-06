@@ -1,0 +1,7 @@
+Corner,MC_Nominal,MC_HvTt,MC_HvLt,MC_HvHt,MC_LvTt,MC_LvLt,MC_LvHt
+Enable,t,t,t,t,t,t,t
+#Temperature,25,25,-40,125,25,-40,125
+Tags,,,,,,,
+Vpower,3.3,3.6,3.6,3.6,3.0,3.0,3.0
+Modelfile::/home/Cancellius/Desktop/IC_Design/PDK/tsmc18/models/spectre/spectre.scs,t mc,t mc,t mc,t mc,t mc,t mc,t mc
+t Test::ADC3v_tb_L2_ADC_SaSwitch_1,t,t,t,t,t,t,t

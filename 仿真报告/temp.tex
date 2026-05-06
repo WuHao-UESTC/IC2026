@@ -1,0 +1,1134 @@
+\documentclass[12pt,a4paper]{ctexart}
+
+% =========================================================
+% 14-bit SAR ADC Simulation Plan and Report Template
+% =========================================================
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{longtable}
+\usepackage{graphicx}
+\usepackage{subcaption}
+\usepackage{float}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage[strings]{underscore}
+
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue!60!black,
+    citecolor=blue!60!black,
+    urlcolor=blue!60!black
+}
+
+\newcommand{\placeholder}[1]{\textcolor{gray}{\fbox{\parbox{0.88\linewidth}{#1}}}}
+\newcommand{\todoresult}{\textcolor{red}{待填入实际仿真结果}}
+\newcommand{\VDD}{3.3\,\mathrm{V}}
+\newcommand{\GND}{0\,\mathrm{V}}
+\newcommand{\VCM}{1.65\,\mathrm{V}}
+\newcommand{\Iphoto}{I_{\mathrm{photo}}}
+\newcommand{\Ibias}{50\,\mathrm{nA}}
+\newcommand{\Iac}{1\,\mathrm{nA}}
+
+\title{14位SAR ADC系统仿真方案书与仿真报告模板}
+\author{}
+\date{\today}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+本文面向一个由光电流输入模拟前端、跨阻放大器、全差分放大器、可编程增益放大器、缓冲器、14位全差分SAR ADC、CDAC、比较器、SAR Logic与SPI接口组成的混合信号系统，给出完整的仿真方案书与仿真报告模板。系统电源为$3.3\,\mathrm{V}/0\,\mathrm{V}$，输入光电流初始条件为直流偏置$50\,\mathrm{nA}$、交流幅度$1\,\mathrm{nA}$。AFE静态增益约为$180\,\mathrm{dB}$，PGA理论可调范围为$1/255$至$255$，实际验证时优先采用中间增益档位，避免极端档位造成带宽下降或相位裕度不足。文档第一部分为仿真方案书，逐项说明仿真设置、系统输入和需要输出的数据；第二部分为仿真报告LaTeX模板，预留实际仿真图像与结果填写位置，并给出结果分析写法。
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+% =========================================================
+% Document 1
+% =========================================================
+\part{文档一：完整仿真方案书}
+
+\section{系统总体仿真条件}
+
+\subsection{系统结构}
+
+本次设计完成的系统为光电流输入型AFE与14位SAR ADC组合结构。整体信号链为：
+\begin{center}
+光电流输入 $\rightarrow$ TIA $\rightarrow$ FDA $\rightarrow$ 二倍放大级 $\rightarrow$ PGA $\rightarrow$ Buffer $\rightarrow$ CDAC/SAR ADC $\rightarrow$ SPI数字输出。
+\end{center}
+
+模拟前端将光电流转换并放大为适合ADC采样的差分电压信号，SAR ADC部分完成采样、保持、逐次逼近、比较和数字输出。SPI接口用于上位机与ADC之间的命令传输和数据读出。
+
+\subsection{统一仿真条件}
+
+\begin{table}[H]
+\centering
+\caption{系统统一仿真条件}
+\begin{tabular}{ll}
+\toprule
+项目 & 设置 \\
+\midrule
+电源 & $VDD=3.3\,\mathrm{V}$，$GND=0\,\mathrm{V}$ \\
+模拟输出共模 & 初始设置$V_{OCM}=1.65\,\mathrm{V}$ \\
+ADC输入共模 & 初始设置$V_{CM}=1.65\,\mathrm{V}$ \\
+输入光电流偏置 & $I_{bias}=50\,\mathrm{nA}$ \\
+输入交流光电流幅度 & $I_{ac}=1\,\mathrm{nA}$ \\
+默认输入表达式 & $I_{photo}(t)=50\,\mathrm{nA}+1\,\mathrm{nA}\cdot\sin(2\pi f_{in}t)$ \\
+TIA反馈网络 & $R_f=100\,\mathrm{k}\Omega$，$C_f=1\,\mathrm{pF}$，可扫$C_f$优化稳定性 \\
+CDAC单位电容 & $C_u=50\,\mathrm{fF}$ \\
+SAR分辨率 & 14 bit \\
+SPI帧长 & 14 bit \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{PGA增益测试原则}
+
+PGA理论可调范围为$1/255$至$255$。由于极端小增益和极端大增益可能引起闭环带宽明显下降、相位裕度不足、输出摆幅受限或噪声恶化，正式性能验证不建议直接使用极限档位。推荐测试档位为：
+\begin{equation}
+G_{PGA}\in\left\{\frac{1}{16},\frac{1}{8},\frac{1}{4},\frac{1}{2},1,2,4,8,16\right\}.
+\end{equation}
+
+其中$G_{PGA}=1$作为默认档位，$1/4$、$4$作为主要对比档位，$1/16$、$16$作为边界观察档位。
+
+\section{跨阻放大器 TIA 单模块仿真方案}
+
+\subsection{输入共模范围仿真}
+
+\textbf{仿真目的：}确认TIA输入端在不同光电流条件下能保持合适的虚地或输入共模，避免输入节点漂移导致前级光电流源工作异常。
+
+\begin{table}[H]
+\centering
+\caption{TIA输入共模范围仿真设置}
+\begin{tabular}{ll}
+\toprule
+项目 & 设置 \\
+\midrule
+仿真类型 & DC Sweep / dcOp \\
+电源 & $VDD=3.3\,\mathrm{V}$，$GND=0\,\mathrm{V}$ \\
+输入电流范围 & $0.1\,\mathrm{nA}$至$1\,\mathrm{\mu A}$ \\
+默认工作点 & $I_{photo}=50\,\mathrm{nA}$ \\
+反馈网络 & $R_f=100\,\mathrm{k}\Omega$，$C_f=1\,\mathrm{pF}$ \\
+输出负载 & 接后级等效输入电容或实际后级输入 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{系统输入：}使用电流源从$0.1\,\mathrm{nA}$扫到$1\,\mathrm{\mu A}$，重点观察$50\,\mathrm{nA}$附近。
+
+\textbf{需要输出：}TIA输入节点电压、TIA输出电压、运放正负输入端电压差、关键晶体管工作区、输出是否饱和。
+
+\subsection{输出共模电平稳定性仿真}
+
+\textbf{仿真目的：}确认TIA输出在光电流变化下的静态电平可被后级接受，不会过度偏离后级输入范围。
+
+\textbf{仿真设置：}DC sweep，$I_{photo}=0.1\,\mathrm{nA}$至$1\,\mathrm{\mu A}$；同时对$C_f=0.5\,\mathrm{pF}$、$1\,\mathrm{pF}$、$2\,\mathrm{pF}$进行参数扫描。
+
+\textbf{系统输入：}直流光电流扫描。
+
+\textbf{需要输出：}TIA输出电压、输出动态范围、是否出现饱和、不同$C_f$下工作点变化。
+
+\subsection{跨阻增益、带宽与相位裕度仿真}
+
+\textbf{仿真目的：}验证TIA跨阻增益、闭环带宽和稳定性。由于TIA采用两级OTA作为主运放，反馈电容$C_f$会显著影响相位裕度和带宽。
+
+\begin{table}[H]
+\centering
+\caption{TIA频率响应仿真设置}
+\begin{tabular}{ll}
+\toprule
+项目 & 设置 \\
+\midrule
+仿真类型 & AC \\
+输入DC & $I_{photo}=50\,\mathrm{nA}$ \\
+输入AC & $1\,\mathrm{nA}$ \\
+扫频范围 & $1\,\mathrm{Hz}$至$100\,\mathrm{MHz}$ \\
+反馈电容扫描 & $C_f=0.5\,\mathrm{pF}$、$1\,\mathrm{pF}$、$2\,\mathrm{pF}$ \\
+输出 & $V_{out}/I_{in}$跨阻增益、$-3\,\mathrm{dB}$带宽、相位裕度 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{需要输出：}跨阻增益曲线、相位曲线、单位增益交叉点、相位裕度、推荐$C_f$值。
+
+\subsection{噪声分析}
+
+\textbf{仿真目的：}评估TIA输入参考噪声和输出噪声，判断其对后续ADC有效位数的影响。
+
+\textbf{仿真设置：}Noise仿真；输入源选择光电流输入端；输出选择TIA输出端；频率范围建议$1\,\mathrm{Hz}$至$10\,\mathrm{MHz}$或按系统信号带宽设定。
+
+\textbf{系统输入：}光电流源设置DC偏置$50\,\mathrm{nA}$，噪声仿真中不需要正弦输入。
+
+\textbf{需要输出：}输出噪声谱密度、积分输出噪声、输入参考电流噪声、主要噪声贡献器件。
+
+\subsection{瞬态阶跃响应仿真}
+
+\textbf{仿真目的：}验证TIA对光电流突变的响应速度、过冲、振铃和建立时间。
+
+\textbf{仿真设置：}Transient仿真；输入电流从$50\,\mathrm{nA}$阶跃到$51\,\mathrm{nA}$，或从$50\,\mathrm{nA}$阶跃到$60\,\mathrm{nA}$；扫描$C_f$观察稳定性。
+
+\textbf{需要输出：}TIA输出波形、过冲比例、建立时间、是否振铃、不同$C_f$下响应对比。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真目的：}评估TIA反馈电阻、OTA输入对管和偏置电流源失配对跨阻增益、输出偏移和噪声的影响。
+
+\textbf{仿真设置：}Monte Carlo mismatch，推荐先跑200次；输入$50\,\mathrm{nA}$ DC，附加AC $1\,\mathrm{nA}$；输出跨阻增益和输出偏置。
+
+\textbf{需要输出：}跨阻增益分布、输出偏置分布、输入参考噪声分布、良率统计。
+
+\subsection{实际指标输出}
+
+最终TIA模块应输出：输入共模范围、输出摆幅范围、跨阻增益、带宽、相位裕度、积分噪声、阶跃建立时间、Monte Carlo下增益误差和输出偏置标准差。
+
+\section{全差分放大器 FDA 仿真方案}
+
+\subsection{输入共模范围仿真}
+
+\textbf{仿真目的：}验证FDA在不同输入共模下保持正常增益和输出共模的能力。
+
+\textbf{仿真设置：}DC sweep；输入共模从$0.5\,\mathrm{V}$扫到$2.5\,\mathrm{V}$；差分输入设置为$0$或小信号$10\,\mathrm{mV}$；输出共模目标$1.65\,\mathrm{V}$。
+
+\textbf{系统输入：}$V_{ip}=V_{ICM}+V_{id}/2$，$V_{in}=V_{ICM}-V_{id}/2$。
+
+\textbf{需要输出：}输出共模、输出差分、关键晶体管工作区、有效输入共模范围。
+
+\subsection{差分增益、带宽与相位裕度仿真}
+
+\textbf{仿真目的：}验证两级FDA的开环/闭环差分增益、带宽和稳定性。
+
+\textbf{仿真设置：}AC仿真；差分AC输入$1\,\mathrm{mV}$或$1\,\mathrm{V}$归一化；频率$1\,\mathrm{Hz}$至$100\,\mathrm{MHz}$；输出共模固定$1.65\,\mathrm{V}$。
+
+\textbf{需要输出：}差分增益、$-3\,\mathrm{dB}$带宽、相位曲线、相位裕度。
+
+\subsection{CMFB稳定性仿真}
+
+\textbf{仿真目的：}验证共模反馈环路能稳定维持输出共模，不发生振荡或慢恢复。
+
+\textbf{仿真设置：}环路稳定性stb或iprobe仿真；在CMFB环路中插入稳定性探针；输出共模目标$1.65\,\mathrm{V}$。
+
+\textbf{系统输入：}差分输入为0，输出共模由CMFB控制。
+
+\textbf{需要输出：}CMFB环路增益、相位裕度、增益裕度、共模恢复时间。
+
+\subsection{CMRR与PSRR仿真}
+
+\textbf{仿真目的：}验证FDA对输入共模扰动和电源扰动的抑制能力。
+
+\textbf{仿真设置：}AC仿真。CMRR仿真中两个输入端同时施加相同AC共模信号；PSRR仿真中VDD设置$acmag=1\,\mathrm{V}$。
+
+\textbf{需要输出：}CMRR曲线、PSRR曲线、低频CMRR/PSRR值、带宽范围内最差值。
+
+\subsection{噪声分析}
+
+\textbf{仿真目的：}得到FDA输出噪声和输入参考噪声，判断其对系统SNDR的影响。
+
+\textbf{仿真设置：}Noise仿真；输出为差分输出；频率范围按系统带宽设置。
+
+\textbf{需要输出：}输出噪声谱、积分噪声、主要噪声贡献器件。
+
+\subsection{瞬态阶跃响应与压摆率仿真}
+
+\textbf{仿真目的：}验证FDA对差分阶跃的恢复速度、输出摆幅和压摆率。
+
+\textbf{仿真设置：}Transient仿真；输入差分阶跃$10\,\mathrm{mV}$、$100\,\mathrm{mV}$；输出共模$1.65\,\mathrm{V}$。
+
+\textbf{需要输出：}输出差分波形、上升/下降压摆率、过冲、建立时间。
+
+\subsection{THD仿真}
+
+\textbf{仿真目的：}评估FDA在正弦输入下的非线性失真。
+
+\textbf{仿真设置：}Transient + FFT；输入差分正弦，频率可取$1\,\mathrm{kHz}$、$10\,\mathrm{kHz}$；幅度按不饱和范围设置。
+
+\textbf{需要输出：}输出正弦波形、FFT频谱、THD。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真目的：}评估输入对管、负载、CMFB器件失配对offset、增益和输出共模的影响。
+
+\textbf{仿真设置：}Monte Carlo mismatch，推荐200次；输入差分为0和小差分两种工况。
+
+\textbf{需要输出：}输出offset分布、增益分布、输出共模分布、CMFB稳定性变化。
+
+\section{可编程增益放大器 PGA 仿真方案}
+
+\subsection{输出共模范围稳定性}
+
+\textbf{仿真目的：}验证不同PGA增益下输出共模是否稳定在$1.65\,\mathrm{V}$附近。
+
+\textbf{仿真设置：}DC或tran；增益档位选择$1/16$、$1/8$、$1/4$、$1/2$、$1$、$2$、$4$、$8$、$16$。
+
+\textbf{系统输入：}差分输入$10\,\mathrm{mV}$，输入共模$1.65\,\mathrm{V}$。
+
+\textbf{需要输出：}PGA输出共模、输出差分、是否饱和。
+
+\subsection{增益步进准确度}
+
+\textbf{仿真目的：}验证R-2R网络控制下的增益是否符合目标设置。
+
+\textbf{仿真设置：}AC或DC sweep；每个增益档输入相同小差分信号，计算$G=V_{out,diff}/V_{in,diff}$。
+
+\textbf{需要输出：}目标增益、实际增益、增益误差、增益单调性。
+
+\subsection{不同增益下带宽与相位裕度}
+
+\textbf{仿真目的：}确认PGA中间档位下带宽足够，并验证极端档位导致的带宽下降趋势。
+
+\textbf{仿真设置：}AC仿真；扫频$1\,\mathrm{Hz}$至$100\,\mathrm{MHz}$；增益档位同上。
+
+\textbf{需要输出：}各档增益曲线、$-3\,\mathrm{dB}$带宽、相位裕度趋势。
+
+\subsection{压摆率与建立时间}
+
+\textbf{仿真目的：}验证PGA能在ADC采样前完成输出建立。
+
+\textbf{仿真设置：}Transient；输入差分阶跃$10\,\mathrm{mV}$或$100\,\mathrm{mV}$；不同增益档。
+
+\textbf{需要输出：}输出阶跃响应、压摆率、建立到0.5 LSB或指定误差带的时间。
+
+\subsection{噪声分析}
+
+\textbf{仿真目的：}评估不同PGA增益下输出噪声和输入参考噪声。
+
+\textbf{仿真设置：}Noise；输出为PGA差分输出；增益档位选择$1/4$、$1$、$4$、$16$。
+
+\textbf{需要输出：}输出噪声谱、积分噪声、输入参考噪声、噪声随增益变化。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真目的：}评估R-2R电阻网络失配和运放失配对增益误差、输出共模和线性度的影响。
+
+\textbf{仿真设置：}Monte Carlo mismatch；每个主要档位跑100至200次。
+
+\textbf{需要输出：}增益误差分布、输出共模分布、offset分布。
+
+\section{CDAC 单模块仿真方案}
+
+\subsection{开关功能验证}
+
+\textbf{仿真目的：}确认14位CDAC的开关控制信号能够正确连接到VIN、VCM、VTOP和VBOT。
+
+\textbf{仿真设置：}Transient或DC；手动给定开关控制；电源$3.3\,\mathrm{V}$；输入共模$1.65\,\mathrm{V}$；差分输入$1$至$2\,\mathrm{V}$范围内选取测试点。
+
+\textbf{需要输出：}每个控制码下的顶板电压、差分DAC输出、是否存在同一电容多端短接。
+
+\subsection{电容权重与DAC步进}
+
+\textbf{仿真目的：}验证两组7位CDAC加桥接电容$C_c$后的等效14位权重是否正确。
+
+\textbf{仿真设置：}依次切换每一位电容，记录$V_{dac,p}$、$V_{dac,n}$和$V_{dac,diff}$。
+
+\textbf{系统输入：}固定输入共模$1.65\,\mathrm{V}$，固定参考电压，逐位翻转CDAC控制码。
+
+\textbf{需要输出：}每一位的电压步进、相邻位权重比、MSB/LSB权重误差。
+
+\subsection{建立时间仿真}
+
+\textbf{仿真目的：}确认CDAC在SAR Logic设置的SETTLE时间内建立到14位精度。
+
+\textbf{仿真设置：}Transient；施加最大码跳变和典型逐位跳变；总电容按单位电容$50\,\mathrm{fF}$与阵列结构计算。
+
+\textbf{需要输出：}CDAC顶板稳定曲线、建立到$0.5\,\mathrm{LSB}$所需时间、推荐SETTLE时间。
+
+\subsection{失配与INL/DNL贡献}
+
+\textbf{仿真目的：}评估电容失配对ADC静态线性度的主要贡献。
+
+\textbf{仿真设置：}Monte Carlo mismatch；提取每次仿真中的bit weight；由权重误差估算DNL/INL。
+
+\textbf{需要输出：}bit weight分布、DNL/INL估计、缺码风险。
+
+\section{比较器 Comp 仿真方案}
+
+\subsection{输入失调与翻转点}
+
+\textbf{仿真目的：}测量比较器输入offset，判断其是否会影响14位低位判决。
+
+\textbf{仿真设置：}DC sweep；输入共模$1.65\,\mathrm{V}$；差分输入从$-5\,\mathrm{mV}$扫到$+5\,\mathrm{mV}$，精扫范围可缩小到$\pm1\,\mathrm{mV}$。
+
+\textbf{需要输出：}翻转点、等效offset、输出逻辑电平。
+
+\subsection{比较延迟与最小可分辨电压}
+
+\textbf{仿真目的：}确认比较器在$0.5\,\mathrm{LSB}$、$1\,\mathrm{LSB}$、$2\,\mathrm{LSB}$输入下能在比较窗口内完成判决。
+
+\textbf{仿真设置：}$Transient；cmp_en$脉冲触发；记录输出翻转时间。
+
+\textbf{需要输出：}比较延迟、不同输入差分下的延迟曲线、最小可靠分辨电压。
+
+\subsection{Kickback仿真}
+
+\textbf{仿真目的：}评估比较器再生过程对CDAC顶板的反冲扰动。
+
+\textbf{仿真设置：}比较器输入端连接等效$CDAC$电容；$cmp_en$上升沿触发。
+
+\textbf{需要输出：}Vcp/Vcn毛刺幅度、恢复时间、对LSB判决的影响。
+
+\section{SAR Logic 与 SPI 时序仿真方案}
+
+\subsection{SPI命令与update流程}
+
+\textbf{仿真目的：}验证SPI帧格式、CS低电平双向通信、CS高电平命令处理，以及PGA MUX/DIV更新逻辑。
+
+\textbf{仿真设置：}Verilog或AMS transient；clk周期$10\,\mathrm{ns}$；SCK周期$20\,\mathrm{ns}$；复位后依次发送PGA MUX更新、PGA DIV更新、NOP读取命令。
+
+\textbf{需要输出：}$CS、SCK、SIMO、SOMI、command、pga_out_mux、pga_out_div、busy$。
+
+\subsection{SAR状态机与转换周期}
+
+\textbf{仿真目的：}验证SAMPLE、HOLD、CMP、UPDATE、SETTLE、DONE状态顺序和转换周期。
+
+\textbf{仿真设置：}输入比较器输出可先用行为模型；SAMPLE_TIME=8，SETTLE_TIME=8；之后根据CDAC建立结果调整。
+
+\textbf{需要输出：}state、bit_idx、dout、done、busy、cmp_en、vcm_sw、cap_p_sel、cap_n_sel。
+
+\section{ADC核心闭环与全系统仿真方案}
+
+\subsection{ADC核心闭环瞬态}
+
+\textbf{仿真目的：}验证CDAC、比较器和SAR Logic组成闭环后能完成14位逐次逼近。
+
+\textbf{仿真设置：}AMS transient；先使用理想差分输入，再接入AFE输出；输入共模$1.65\,\mathrm{V}$；差分输入选取$-FS/4$、0、$+FS/4$和正弦输入。
+
+\textbf{需要输出：}$Vcp、Vcn、Vdac_diff、comp、dout、done、busy$、每一位$CDAC$切换波形。
+
+\subsection{全系统瞬态与输出码流采集}
+
+\textbf{仿真目的：}验证从光电流输入到数字码输出的完整链路。
+
+\textbf{仿真设置：}$AMS transient；$输入$I_{photo}(t)=50\,\mathrm{nA}+1\,\mathrm{nA}\sin(2\pi f_{in}t)$；PGA初始增益为1；采集至少256点调试，正式FFT采集1024点或4096点。
+
+\textbf{需要输出：}$AFE_out、ADC_in、dout、done、busy、SPI last_rx、CSV$码流。
+
+\subsection{FFT动态性能}
+
+\textbf{仿真目的：}计算$SNR、SNDR、THD、SFDR$和$ENOB$。
+
+\textbf{仿真设置：}在done上升沿记录一次dout。输入频率采用相干采样：
+\begin{equation}
+    f_{in}=\frac{M}{N}f_s.
+\end{equation}
+
+\textbf{需要输出：}码流$CSV、FFT$频谱、$SNR、SNDR、THD、SFDR、ENOB$。
+
+\section{系统鲁棒性与功耗仿真方案}
+
+\subsection{DNL与INL}
+
+\textbf{设置：}输入慢斜坡或code density；采集输出码分布；计算DNL和INL。
+
+\textbf{输入：}ADC差分输入从负满量程扫到正满量程，或光电流缓慢扫描。
+
+\textbf{输出：}每码出现次数、DNL、INL、缺码情况。
+
+\subsection{Monte Carlo}
+
+\textbf{设置：}先单模块200至1000次，再全系统20至50次。
+
+\textbf{输入：}模块级使用DC/AC标准输入；系统级使用$50\,\mathrm{nA}+1\,\mathrm{nA}$正弦输入。
+
+\textbf{输出：}offset、gain error、bit weight、DNL/INL、SNDR/ENOB分布。
+
+\subsection{Corner}
+
+\textbf{设置：}TT、SS、FF、SF、FS；温度$-40^{\circ}\mathrm{C}$、$27^{\circ}\mathrm{C}$、$85^{\circ}\mathrm{C}$；电源可选3.0 V、3.3 V、3.6 V。
+
+\textbf{输出：}AFE工作点、增益、带宽、比较器延迟、CDAC建立时间、ADC输出码、功耗。
+
+\subsection{PSRR与CMRR}
+
+\textbf{设置：}PSRR中VDD设置AC扰动；CMRR中输入端施加共模AC扰动。
+
+\textbf{输出：}PSRR曲线、CMRR曲线、低频值和带宽内最差值。
+
+\subsection{功耗}
+
+\textbf{设置：}dcOp测静态功耗，transient测动态功耗。
+
+\textbf{输出：}各模块电源电流、平均功耗、峰值电流、单次转换能量。
+
+\newpage
+
+% =========================================================
+% Document 2
+% =========================================================
+\part{文档二：仿真报告LaTeX正文模板}
+
+\section{报告填写说明}
+
+本部分为仿真报告正文模板。由于当前尚未提供实际Virtuoso仿真波形、ADE输出数据、FFT数据和Monte Carlo统计结果，以下“仿真结果”均采用“待填入实际仿真结果”的形式预留。正式报告中应将灰色图像占位框替换为实际仿真截图或导出的曲线，并将表格中的结果值替换为真实仿真数据。本文中给出的“结果分析”用于说明应如何解释对应结果，不代表已经完成的实测数值。
+
+\section{系统仿真平台与基础设置}
+
+本次仿真基于Cadence Virtuoso ADE环境完成，系统电源设为$VDD=3.3\,\mathrm{V}$、$GND=0\,\mathrm{V}$。模拟前端输入为光电流信号，默认直流偏置为$50\,\mathrm{nA}$，交流输入幅度为$1\,\mathrm{nA}$。输入信号可表示为：
+\begin{equation}
+I_{photo}(t)=50\,\mathrm{nA}+1\,\mathrm{nA}\cdot\sin(2\pi f_{in}t).
+\end{equation}
+
+系统输出通过14位SAR ADC转换为数字码，并可经SPI接口读出。PGA理论增益范围为$1/255$至$255$，但考虑极端档位可能导致带宽下降和相位裕度不足，本文主要测试$1/16$至$16$范围内的中间档位。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入图1：14位SAR ADC系统整体框图。}
+\caption{14位SAR ADC系统整体结构}
+\label{fig:report_system}
+\end{figure}
+
+\section{跨阻放大器（TIA）单模块仿真}
+
+\subsection{输入共模范围}
+
+\textbf{仿真设置：}TIA采用两级OTA作为主运放，外围反馈网络为$R_f=100\,\mathrm{k}\Omega$、$C_f=1\,\mathrm{pF}$。电源为$3.3\,\mathrm{V}$，输入电流从$0.1\,\mathrm{nA}$扫到$1\,\mathrm{\mu A}$，重点观察$50\,\mathrm{nA}$工作点附近。
+
+\textbf{仿真输入：}直流光电流$I_{photo}$。
+
+\textbf{仿真输出：}TIA输入节点电压、TIA输出节点电压、运放输入差分电压、关键晶体管工作区。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入TIA输入共模范围DC扫描曲线。横轴为输入光电流，纵轴为输入节点电压和TIA输出电压。}
+\caption{TIA输入共模范围仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}若输入节点电压在$50\,\mathrm{nA}$附近保持稳定，说明TIA的虚地控制正常，输入光电流能够被反馈网络有效转换为输出电压。若输入电流增大时输出电压接近电源轨，则说明TIA已经进入饱和区域，后续系统输入范围需要限制在未饱和区间内。
+
+\subsection{输出共模电平稳定性}
+
+\textbf{仿真设置：}在$C_f=0.5\,\mathrm{pF}$、$1\,\mathrm{pF}$和$2\,\mathrm{pF}$下分别扫描输入电流，比较TIA输出静态电平。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入不同Cf下TIA输出电平对比曲线。}
+\caption{不同反馈电容下TIA输出共模稳定性}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}反馈电容主要影响动态稳定性，对DC输出电平影响较小。若不同$C_f$下DC工作点变化不大，说明反馈电容选择主要由带宽和相位裕度决定；若输出电平随输入电流变化过大，则需要检查$R_f$与后级输入范围是否匹配。
+
+\subsection{跨阻增益，带宽与相位裕度}
+
+\textbf{仿真设置：}输入光电流设置为$50\,\mathrm{nA}$ DC，并设置AC幅度$1\,\mathrm{nA}$；扫频范围为$1\,\mathrm{Hz}$至$100\,\mathrm{MHz}$；扫描$C_f$以寻找最佳稳定性。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入TIA跨阻增益与相位曲线。}
+\caption{TIA跨阻增益、带宽与相位响应}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{TIA频率响应仿真结果}
+\begin{tabular}{cccc}
+\toprule
+$C_f$ & 跨阻增益 & $-3\,\mathrm{dB}$带宽 & 相位裕度 \\
+\midrule
+$0.5\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+$1\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+$2\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}若$C_f$较小，系统带宽较高但相位裕度可能降低；若$C_f$较大，系统稳定性提升但带宽下降。最终应选择在相位裕度和带宽之间折中的$C_f$。初始设计采用$1\,\mathrm{pF}$作为推荐值。
+
+\subsection{噪声分析}
+
+\textbf{仿真设置：}Noise仿真，输出节点为TIA输出，输入参考端为光电流输入端，频率范围按信号带宽设置。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入TIA输出噪声谱密度与积分噪声曲线。}
+\caption{TIA噪声仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}TIA噪声会被后级放大并进入ADC输入端，因此输入参考电流噪声需要小于$1\,\mathrm{nA}$交流信号幅度对应的可接受噪声预算。若低频噪声过大，应关注输入对管尺寸、偏置电流和反馈电阻热噪声。
+
+\subsection{瞬态阶跃响应}
+
+\textbf{仿真设置：}输入光电流从$50\,\mathrm{nA}$阶跃到$51\,\mathrm{nA}$或$60\,\mathrm{nA}$，观察TIA输出响应。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入TIA瞬态阶跃响应曲线。}
+\caption{TIA瞬态阶跃响应}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}若输出出现明显振铃，说明反馈环路稳定性不足，需要增大$C_f$或调整OTA补偿；若建立时间过长，则可能限制系统动态响应。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真设置：}开启mismatch Monte Carlo，运行200次以上，输入光电流为$50\,\mathrm{nA}$。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入TIA跨阻增益或输出偏置Monte Carlo直方图。}
+\caption{TIA蒙特卡洛分析结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}Monte Carlo结果用于评估反馈电阻和OTA失配造成的增益误差与输出偏置。若标准差过大，需要提高电阻匹配、增大关键器件面积或引入校准。
+
+\subsection{实际指标}
+
+\begin{table}[H]
+\centering
+\caption{TIA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+输入电流范围 & 待填 & 目标$0.1\,\mathrm{nA}$至$1\,\mathrm{\mu A}$ \\
+跨阻增益 & 待填 & $R_f=100\,\mathrm{k}\Omega$附近 \\
+带宽 & 待填 & 由$C_f$决定 \\
+相位裕度 & 待填 & 推荐大于$60^{\circ}$ \\
+输出噪声 & 待填 & 积分噪声 \\
+阶跃建立时间 & 待填 & 由瞬态仿真得到 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{全差分放大器（FDA）仿真}
+
+\subsection{输入共模范围}
+
+\textbf{仿真设置：}电源$3.3\,\mathrm{V}$，输出共模目标$1.65\,\mathrm{V}$，输入共模从$0\,\mathrm{V}$扫到$3.3\,\mathrm{V}$。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA输入共模扫描结果。}
+\caption{FDA输入共模范围仿真}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}FDA采用第一级Cascode和第二级共源结构，输入共模范围需要保证第一级输入管和Cascode管均处于合适工作区。若输入共模过高或过低导致输出失真，应在系统中限制前级输出共模。
+
+\subsection{差分增益，带宽与相位裕度}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA差分增益和相位响应。}
+\caption{FDA差分增益、带宽与相位裕度}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}两级结构提高了增益和输出摆幅，但也带来稳定性问题。若相位裕度不足，需要调整补偿电容、负载或第二级偏置。
+
+\subsection{共模反馈回路（CMFB）稳定性}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CMFB环路增益与相位裕度曲线。}
+\caption{CMFB稳定性仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}CMFB应稳定地将输出共模锁定在$1.65\,\mathrm{V}$。若CMFB相位裕度不足，可能导致输出共模振荡，并进一步影响ADC输入共模。
+
+\subsection{共模抑制比（CMRR）与电源抑制比（PSRR）}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA CMRR和PSRR曲线。}
+\caption{FDA CMRR与PSRR仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}CMRR反映输入共模扰动转化为差分输出的能力，PSRR反映电源扰动对输出的影响。对于高增益AFE，CMRR和PSRR不足会直接降低ADC动态性能。
+
+\subsection{噪声分析}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA噪声谱和积分噪声。}
+\caption{FDA噪声分析结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}FDA噪声会叠加到ADC输入端。若积分噪声接近或超过ADC的LSB量级，需要优化输入级尺寸和偏置。
+
+\subsection{瞬态阶跃响应与压摆率}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA阶跃响应与压摆率测量图。}
+\caption{FDA瞬态阶跃响应}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}压摆率需要满足后级采样前的建立要求。如果阶跃响应建立时间过长，会影响SAR采样到的真实输入值。
+
+\subsection{总谐波失真（THD）}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA输出FFT频谱与THD结果。}
+\caption{FDA THD仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}THD用于衡量FDA非线性。若二次或三次谐波较高，需要检查输出摆幅、输入差分幅度和器件工作区。
+
+\subsection{蒙特卡洛分析}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入FDA offset或增益Monte Carlo直方图。}
+\caption{FDA蒙特卡洛结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}FDA失配会引起输出offset、增益误差和共模偏差。若Monte Carlo分布较宽，应优化匹配版图和关键器件面积。
+
+\subsection{实际指标}
+
+\begin{table}[H]
+\centering
+\caption{FDA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+差分增益 & 待填 & AC仿真得到 \\
+带宽 & 待填 & $-3\,\mathrm{dB}$带宽 \\
+相位裕度 & 待填 & 差分环路稳定性 \\
+CMFB相位裕度 & 待填 & 共模环路稳定性 \\
+CMRR & 待填 & 低频和带宽内最差值 \\
+PSRR & 待填 & 电源扰动抑制 \\
+噪声 & 待填 & 积分噪声 \\
+THD & 待填 & 正弦输入FFT \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{可编程增益放大器（PGA）单模块仿真}
+
+\subsection{输出共模范围稳定性}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入不同PGA增益下输出共模仿真图。}
+\caption{PGA输出共模稳定性}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}PGA采用全差分架构，输出共模应稳定在$1.65\,\mathrm{V}$附近。若高增益档导致共模偏移或输出饱和，应排除该档位作为正常工作档。
+
+\subsection{增益步进准确度}
+
+\begin{table}[H]
+\centering
+\caption{PGA增益步进准确度}
+\begin{tabular}{cccc}
+\toprule
+目标增益 & 实际增益 & 增益误差 & 是否单调 \\
+\midrule
+$1/16$ & 待填 & 待填 & 待填 \\
+$1/8$ & 待填 & 待填 & 待填 \\
+$1/4$ & 待填 & 待填 & 待填 \\
+$1/2$ & 待填 & 待填 & 待填 \\
+$1$ & 待填 & 待填 & 待填 \\
+$2$ & 待填 & 待填 & 待填 \\
+$4$ & 待填 & 待填 & 待填 \\
+$8$ & 待填 & 待填 & 待填 \\
+$16$ & 待填 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}增益应随控制码单调变化。由于R-2R网络和运放有限增益会引入误差，实际增益与目标增益之间允许存在一定偏差，但应在系统校准范围内。
+
+\subsection{不同增益下带宽与相位裕度}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入不同PGA增益下的带宽和相位裕度曲线。}
+\caption{PGA不同增益下带宽变化}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}PGA极端高增益档往往带宽下降，极端低增益档可能受反馈网络和寄生影响。正式系统测试应优先选取中间档位。
+
+\subsection{压摆率与建立时间}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入PGA阶跃响应与建立时间仿真图。}
+\caption{PGA压摆率与建立时间}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}PGA输出必须在ADC采样窗口前稳定，否则会引起采样误差。若高增益档建立时间过长，应限制其最大输入频率或不作为默认工作档。
+
+\subsection{噪声分析}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入PGA噪声分析结果。}
+\caption{PGA噪声分析}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}PGA噪声会随增益设置变化。高增益时输出噪声增大，低增益时后级噪声占比提高，因此需要结合系统SNDR选择合适增益。
+
+\subsection{蒙特卡洛分析}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入PGA增益误差Monte Carlo直方图。}
+\caption{PGA蒙特卡洛分析}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}R-2R网络电阻失配会造成增益误差和非单调风险。若误差过大，需要提高电阻匹配精度或引入数字校准。
+
+\subsection{实际指标}
+
+\begin{table}[H]
+\centering
+\caption{PGA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+推荐增益范围 & 待填 & 避免极端档位 \\
+增益误差 & 待填 & 中间档最大误差 \\
+输出共模 & 待填 & 目标$1.65\,\mathrm{V}$ \\
+带宽 & 待填 & 不同档位对比 \\
+建立时间 & 待填 & 阶跃仿真 \\
+噪声 & 待填 & 积分噪声 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{电容数字模拟转换器（CDAC）单模块仿真}
+
+\subsection{开关控制功能}
+
+\textbf{仿真设置：}电源$3.3\,\mathrm{V}$，输入差分共模$1.65\,\mathrm{V}$，差分输入范围$1$至$2\,\mathrm{V}$。手动切换VIN、VCM、VTOP和VBOT控制信号。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CDAC开关功能验证波形。}
+\caption{CDAC开关功能验证}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}每个电容单元在任一时刻应只连接一个目标端。若出现多端同时导通，会导致参考短接或采样错误，需要检查开关译码逻辑。
+
+\subsection{电容权重与差分步进}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CDAC逐位权重步进曲线。}
+\caption{CDAC逐位电压步进}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{CDAC位权重仿真结果}
+\begin{tabular}{cccc}
+\toprule
+位 & 理想权重 & 实际步进 & 权重误差 \\
+\midrule
+MSB & 待填 & 待填 & 待填 \\
+Bit 12 & 待填 & 待填 & 待填 \\
+Bit 11 & 待填 & 待填 & 待填 \\
+$\cdots$ & $\cdots$ & $\cdots$ & $\cdots$ \\
+LSB & 待填 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}CDAC由两组7位电容阵列和桥接电容构成，桥接电容会影响高低段之间的权重比例。若权重误差较大，将直接导致INL/DNL恶化。
+
+\subsection{建立时间}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CDAC最大码跳变后的建立波形。}
+\caption{CDAC建立时间仿真}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}14位建立精度要求CDAC误差小于$0.5\,\mathrm{LSB}$。若默认SETTLE时间不足，应增加SAR Logic中的SETTLE参数或增大开关尺寸。
+
+\subsection{蒙特卡洛失配分析}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CDAC电容失配导致的INL/DNL统计图。}
+\caption{CDAC蒙特卡洛失配分析}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}14位ADC对CDAC失配非常敏感。若Monte Carlo下出现DNL超过$\pm1\,\mathrm{LSB}$，可能存在缺码风险，需要增加单位电容、优化版图匹配或引入校准。
+
+\subsection{实际指标}
+
+\begin{table}[H]
+\centering
+\caption{CDAC实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+单位电容 & $50\,\mathrm{fF}$ & 设计值 \\
+有效分辨率 & 14 bit & 目标 \\
+最大建立时间 & 待填 & 到$0.5\,\mathrm{LSB}$ \\
+DNL贡献 & 待填 & 由权重误差估计 \\
+INL贡献 & 待填 & 由权重误差估计 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{比较器（Comp）单模块仿真}
+
+\subsection{输入失调}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入比较器DC翻转曲线。}
+\caption{比较器输入失调仿真}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}比较器offset会表现为ADC整体offset误差。若offset接近多个LSB，需要考虑前端校准或数字修正。
+
+\subsection{比较延迟}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入不同输入差分下比较器延迟曲线。}
+\caption{比较器比较延迟仿真}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}输入差分越小，比较器延迟越大。SAR Logic中的比较窗口必须覆盖最小输入差分下的最坏延迟。
+
+\subsection{Kickback}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入比较器kickback对Vcp/Vcn的扰动波形。}
+\caption{比较器Kickback仿真}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}若kickback扰动接近LSB量级，会影响低位比较，应优化比较器输入隔离或增加CDAC顶板稳定时间。
+
+\section{SAR Logic与SPI时序仿真}
+
+\subsection{SPI通信与update命令}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入CS、SCK、SIMO、SOMI、busy的SPI时序波形。}
+\caption{SPI通信与update命令时序}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}CS为低时应完成14位双向移位，CS拉高后从机解析命令并执行update。PGA MUX和PGA DIV寄存器应在对应命令后更新。
+
+\subsection{SAR状态机转换过程}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入SAR状态机state、bit_idx、cmp_en、dout、done、busy波形。}
+\caption{SAR状态机转换时序}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}状态机应按SAMPLE、HOLD、CMP、UPDATE、SETTLE和DONE顺序运行。若done提前或busy释放过早，可能导致上位机读到未完成的转换结果。
+
+\section{ADC核心闭环仿真}
+
+\subsection{逐次逼近过程}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入Vcp、Vcn、Vdac_diff和dout逐位逼近波形。}
+\caption{ADC核心逐次逼近瞬态波形}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}在一次转换过程中，比较器输入差分应随CDAC切换逐步逼近零点。若某一位切换后残差方向异常，说明CDAC开关极性或SAR Logic更新规则可能存在问题。
+
+\subsection{转换周期与采样率}
+
+\textbf{仿真结果：}默认SAMPLE和SETTLE参数下，理论转换周期约为155个clk周期。若clk周期为$10\,\mathrm{ns}$，则单次转换时间约为$1.55\,\mathrm{\mu s}$，理论采样率约为$645\,\mathrm{kS/s}$。实际结果需根据AMS仿真中done间隔测量。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入done脉冲间隔测量图。}
+\caption{SAR ADC转换周期测量}
+\end{figure}
+
+\section{全系统动态性能仿真}
+
+\subsection{光电流输入下的输出码流}
+
+\textbf{仿真设置：}输入$50\,\mathrm{nA}+1\,\mathrm{nA}$正弦光电流，PGA增益设置为1，采集done上升沿处的ADC输出码。
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入光电流输入、AFE输出和ADC输出码流随时间变化图。}
+\caption{全系统瞬态输出码流}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}输出码流应随输入正弦呈周期变化。若码流饱和，说明AFE或PGA增益过大；若码流变化过小，说明输入幅度或PGA增益过低。
+
+\subsection{FFT与ENOB}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入ADC输出码流FFT频谱。}
+\caption{ADC输出FFT动态性能分析}
+\end{figure}
+
+\begin{table}[H]
+\centering
+\caption{ADC动态性能指标}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 说明 \\
+\midrule
+SNR & 待填 & 信噪比 \\
+SNDR & 待填 & 信号与噪声失真比 \\
+THD & 待填 & 总谐波失真 \\
+SFDR & 待填 & 无杂散动态范围 \\
+ENOB & 待填 & $(SNDR-1.76)/6.02$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}ENOB由SNDR计算得到。若SNDR低于预期，应分别检查AFE噪声、PGA失真、CDAC失配、比较器offset和采样时序。
+
+\section{DNL、INL与失配分析}
+
+\subsection{DNL与INL}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入DNL和INL曲线。}
+\caption{ADC静态线性度仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}DNL应尽量小于$\pm1\,\mathrm{LSB}$以避免缺码。INL反映电容权重误差和系统非线性的累积影响。
+
+\subsection{Monte Carlo}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入系统级Monte Carlo下ENOB、offset或INL统计结果。}
+\caption{系统级Monte Carlo分析}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}Monte Carlo用于评估工艺失配下的性能分布。若良率不足，需要从CDAC匹配、比较器offset、PGA电阻匹配和版图对称性等方面优化。
+
+\section{PSRR、CMRR与功耗分析}
+
+\subsection{PSRR与CMRR}
+
+\begin{figure}[H]
+\centering
+\placeholder{此处插入系统PSRR和CMRR曲线。}
+\caption{系统PSRR与CMRR仿真结果}
+\end{figure}
+
+\textbf{仿真结果：}\todoresult。
+
+\textbf{结果分析：}PSRR不足会使电源纹波表现为输出码抖动，CMRR不足会使共模光电流或共模电压扰动转化为差分误差。对于高增益AFE，该部分对系统稳定性和动态范围影响较大。
+
+\subsection{功耗}
+
+\begin{table}[H]
+\centering
+\caption{系统功耗仿真结果}
+\begin{tabular}{lll}
+\toprule
+模块 & 静态功耗 & 动态功耗 \\
+\midrule
+TIA & 待填 & 待填 \\
+FDA & 待填 & 待填 \\
+PGA & 待填 & 待填 \\
+Buffer & 待填 & 待填 \\
+Comparator & 待填 & 待填 \\
+SAR Logic/SPI & 待填 & 待填 \\
+总功耗 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}静态功耗主要由AFE和偏置电路决定，动态功耗主要来自比较器再生、CDAC切换和数字逻辑翻转。单次转换能量可由$E_{conv}=\int VDD\cdot I_{DD}(t)dt$得到。
+
+\section{仿真结果与设计指标对比}
+
+\begin{table}[H]
+\centering
+\caption{最终仿真指标汇总表}
+\begin{tabular}{llll}
+\toprule
+类别 & 指标 & 仿真结果 & 是否满足 \\
+\midrule
+TIA & 跨阻增益 & 待填 & 待填 \\
+TIA & 带宽/相位裕度 & 待填 & 待填 \\
+FDA & 差分增益 & 待填 & 待填 \\
+FDA & CMRR/PSRR & 待填 & 待填 \\
+PGA & 推荐增益范围 & 待填 & 待填 \\
+PGA & 增益误差 & 待填 & 待填 \\
+CDAC & 建立时间 & 待填 & 待填 \\
+CDAC & DNL/INL贡献 & 待填 & 待填 \\
+Comparator & offset/delay & 待填 & 待填 \\
+SAR ADC & 转换周期 & 待填 & 待填 \\
+SAR ADC & SNDR/ENOB & 待填 & 待填 \\
+System & 总功耗 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{结论}
+
+本文建立了14位SAR ADC系统的完整仿真验证流程，覆盖TIA、FDA、PGA、CDAC、比较器、SAR Logic、SPI接口以及全系统动态性能。后续实际仿真应优先完成单模块工作点与稳定性验证，再进行ADC核心闭环和全系统码流采集。最终通过DNL/INL、FFT动态性能、Monte Carlo、Corner、PSRR/CMRR和功耗仿真确认系统是否满足设计指标。
+
+\end{document}

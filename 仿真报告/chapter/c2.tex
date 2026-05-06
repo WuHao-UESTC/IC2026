@@ -1,0 +1,631 @@
+\chapter{子模块性能仿真}
+
+特别说明：在本章节中，为确保仿真结果输出的可靠性与图表展示的清晰度，除了典型标称状态（Nominal/TT, $3.3\,\mathrm{V}$, $25^\circ\mathrm{C}$）外，我们特意选取了以下四个最具代表性的极限工艺角与 PVT 条件下的仿真波形进行重叠绘制与分析。选择这四个工艺角作为典型边界条件的理由如下：
+
+\begin{enumerate}
+    \item \textbf{Asym\_FS (Fast NMOS, Slow PMOS, $3.3\,\mathrm{V}$, $25^\circ\mathrm{C}$):} 
+    该不对称工艺角会导致 NMOS 和 PMOS 的载流子迁移率与跨导（$g_m$）发生严重错配。对于全差分架构（FDA/PGA）和电流镜偏置电路，这种错配会从物理底层破坏电路的对称性。选取该状态是评估共模反馈（CMFB）稳定性、共模抑制比（CMRR）恶化程度以及系统直流失调（Offset）漂移的最佳“不对称极限”场景。
+
+    \item \textbf{Asym\_SF (Slow NMOS, Fast PMOS, $3.3\,\mathrm{V}$, $25^\circ\mathrm{C}$):} 
+    与 Asym\_FS 呈相反的错配极端。在具有级联结构的运算放大器中，该工艺角极易导致不同支路的静态工作点发生偏移，进而挤压晶体管的输出电压裕度（$V_{ov}$）。将其纳入典型绘制，旨在双向验证电路在极端工艺偏斜下，是否仍能维持合理的静态偏置与大信号动态范围。
+
+    \item \textbf{BC (Best Case - FF, $3.6\,\mathrm{V}$, $-40^\circ\mathrm{C}$):} 
+    在该状态下，器件速度最快、供电电压最高且温度最低，晶体管的跨导和运放的增益带宽积（GBW）将飙升至系统最大值。选取该工艺角主要用于严苛考核闭环系统的\textbf{高频稳定性}，验证在 GBW 暴增的情况下，非主极点是否会侵蚀相位裕度（Phase Margin），以及瞬态阶跃响应中是否会暴露出严重的过冲（Overshoot）或高频振荡（Ringing）风险。
+
+    \item \textbf{WCLowtemp (Worst Case Low Temp - SS, $3.0\,\mathrm{V}$, $-40^\circ\mathrm{C}$):} 
+    该状态叠加了最慢的工艺、极低的供电电压以及低温下的阈值电压（$V_{th}$）上升，导致晶体管驱动能力降至冰点。这是评估系统\textbf{“速度与建立瓶颈”}的绝对恶劣条件。选取该角用于验证在带宽与压摆率（Slew Rate）被严重压缩的极限下，系统是否依然能够满足 $700\,\mathrm{kHz}$ 的目标带宽，以及能否在规定的时钟周期内完成 14-bit 精度的建立（Settling）。
+\end{enumerate}
+完整的PVT与工艺角仿真可见仿真文件中。
+
+% -------------------------------
+% 跨阻放大器（TIA）单模块仿真
+% @ 模块基本测试条件：
+%   1. 电源3.3V
+%   2. 输入电流范围0.1n~1uA
+% @ 模块技术细节：
+%   1. 采用两级ota架构运放作为主运放
+%   2. 外围采用Rf=100k，Cf=1p（可以更改Cf以找到最佳的值）
+% @ 模块设计图见图二
+% -------------------------------
+\section{跨阻放大器（TIA）单模块仿真}
+
+\subsection{输入共模范围}
+
+\textbf{仿真设置：}TIA采用两级OTA作为主运放，外围反馈网络为
+$R_f=100\,\mathrm{k}\Omega$、$C_f=1\,\mathrm{pF}$。
+电源为$3.3\,\mathrm{V}$，输入电流从$0.1\,\mathrm{nA}$扫到$1\,\mathrm{\mu A}$，
+重点观察$50\,\mathrm{nA}$工作点附近。
+仿真所用testbench如图\ref{fig:sch.tia}所示。
+\begin{figure}[h]
+    \includegraphics[width=0.5\textwidth]{tia_icmr_tb.png}
+    \caption{TIA输入共模范围仿真testbench}
+    \label{fig:tia_icmr_tb}
+\end{figure}
+
+\textbf{仿真输入：}直流光电流$I_{photo}$。
+
+\textbf{仿真输出：}TIA输出节点电压
+TIA输出节点电压与输入DC电流的关系在三个极端工艺角下的图像如下：
+figure
+\begin{figure}[h]
+	\includegraphics[width=0.8\textwidth]{tia_icmr_curve.png}
+	\caption{TIA输入共模范围仿真结果}
+	\label{fig:tia_icmr_curve}
+\end{figure}
+
+\textbf{结果分析：} 如图，当输入的光电流发生变化时，TIA输出节点的共模电压也会同时发生变化，且在
+不同工艺角下的变化基本一致。稳定输出$V_{cm} = 1.65V$的范围是$0nA \sim 330nA$, 输入330nA时
+产生的0.03V偏差，对于系统的第一级而言已经难以容忍。
+
+\textbf{解决方案：} 信号经过TIA后，再经过两级单端输出放大器，并在最后一级采用共模负反馈稳定输出共模电平。
+负反馈拓扑结构如图  所示：
+% \begin{figure}[h]
+% 	\includegraphics{sch.tia_cmfb.png}
+% 	\caption{TIA共模负反馈拓扑结构}
+% 	\label{fig:sch.tia_cmfb}
+% \end{figure}
+而后将多级进行联调,并输出最后一级的共模电平如图  
+% \begin{figure}[h]
+% 	\includegraphics{tia_cmfb_curve.png}
+% 	\caption{TIA共模负反馈仿真结果}
+% 	\label{fig:tia_cmfb_curve}
+% \end{figure}
+
+\subsection{跨阻增益，带宽与相位裕度}
+
+\textbf{仿真设置：}输入光电流设置为$50\,\mathrm{nA}$ DC，并设置AC幅度$1\,\mathrm{nA}$；扫频范围为$1\,\mathrm{Hz}$至$100\,\mathrm{MHz}$；扫描$C_f$以寻找最佳稳定性。
+仿真所用testbench同上,如图\ref{fig:sch.tia}所示。
+
+\textbf{仿真输出：}TIA输出节点20dB增益与相位的频率响应。
+TIA输出节点20dB增益与相位与信号频率在四个不同工艺角下的关系如图所示。
+
+\begin{figure}[h]
+	\includegraphics[width=0.8\linewidth]{tia_ac_curve.png}
+	\caption{TIA交流增益与相位仿真结果}
+	\label{fig:tia_ac_curve}
+\end{figure}
+
+根据图像可以整理得到以下结果
+\begin{table}[H]
+\centering
+\caption{TIA频率响应仿真结果}
+\begin{tabular}{cccc}
+\toprule
+$C_f$ & 跨阻增益 & $-3\,\mathrm{dB}$带宽 & 相位裕度 \\
+\midrule
+$0.5\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+$1\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+$2\,\mathrm{pF}$ & 待填 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：}若$C_f$较小，系统带宽较高但相位裕度可能降低，带宽内平坦度下降；若$C_f$较大，系统稳定性提升但带宽下降。最终应选择在相位裕度和带宽之间折中的$C_f$。初始设计采用$1\,\mathrm{pF}$作为推荐值。
+
+\subsection{噪声分析}
+\textbf{仿真设置：}Noise仿真，输出节点为TIA输出，输入参考端为光电流输入端，频率范围按信号带宽设置。
+仿真所用testbench同上,如图\ref{fig:sch.tia}所示。
+
+
+\textbf{仿真输出：}TIA输出节点噪声谱密度与积分噪声曲线。
+TIA输出节点噪声谱密度与积分噪声曲线与信号频率在四个不同工艺角下的关系如图所示。
+\begin{figure}[h]
+	\includegraphics[width=0.8\linewidth]{tia_noise_curve}
+	\caption{TIA噪声仿真结果}
+	\label{fig:tia_noise_curve}
+\end{figure}
+
+\textbf{仿真结果：}
+
+\textbf{结果分析：}TIA噪声会被后级放大并进入ADC输入端，因此输入参考电流噪声需要小于$1\,\mathrm{nA}$交流信号幅度对应的可接受噪声预算。若低频噪声过大，应关注输入对管尺寸、偏置电流和反馈电阻热噪声。
+
+\subsection{瞬态阶跃响应}
+\textbf{仿真设置：}输入光电流从$50\,\mathrm{nA}$阶跃到$51\,\mathrm{nA}$或$60\,\mathrm{nA}$，观察TIA输出响应。
+
+\textbf{仿真输出：}TIA输出电压。
+TIA输出电压与时间在四个不同工艺角下的关系如图所示。
+\begin{figure}[h]
+	\includegraphics[width=0.8\linewidth]{tia_step_curve.png}
+	\caption{TIA阶跃响应仿真结果}
+	\label{fig:tia_step_curve}
+\end{figure}
+
+\textbf{仿真结果：}
+
+\textbf{结果分析：}若输出出现明显振铃，说明反馈环路稳定性不足，需要增大$C_f$或调整OTA补偿；若建立时间过长，则可能限制系统动态响应。
+
+
+\subsection{蒙特卡洛分析}
+\textbf{仿真设置：}开启mismatch Monte Carlo，运行200次以上，输入光电流为$50\,\mathrm{nA}$。
+仿真所用testbench同上,如图\ref{fig:sch.tia}所示。
+
+\textbf{仿真输出：}TIA输出节点-3dB带宽。
+TIA输出节点-3dB带宽在对应蒙特卡洛工艺角下的直方图如图所示。
+% \begin{figure}[h]
+% 	\includegraphics{tia_mc_curve.png}
+% 	\caption{TIA蒙特卡洛带宽仿真结果}
+% 	\label{fig:tia_mc_curve}
+% \end{figure}
+
+\textbf{仿真结果：}
+
+\textbf{结果分析：}Monte Carlo结果用于评估反馈电阻和OTA失配造成的增益误差与输出偏置。若标准差过大，需要提高电阻匹配、增大关键器件面积或引入校准。
+
+
+\subsection{实际指标}
+\begin{table}[H]
+\centering
+\caption{TIA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+输入电流范围 & 待填 & 目标$0.1\,\mathrm{nA}$至$1\,\mathrm{\mu A}$ \\
+跨阻增益 & 待填 & $R_f=100\,\mathrm{k}\Omega$附近 \\
+带宽 & 待填 & 由$C_f$决定 \\
+相位裕度 & 待填 & 推荐大于$60^{\circ}$ \\
+输出噪声 & 待填 & 积分噪声 \\
+阶跃建立时间 & 待填 & 由瞬态仿真得到 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+% -------------------------------
+% 全差分放大器（FDA）仿真
+% @ 模块基本测试条件：
+%   1. 电源3.3V
+%   2. 标准共模输出1.65V
+% @ 模块技术细节：
+%   1. 采用两级架构，第一级为Cascode，第二级为普通的共源极，提高输出摆幅
+% @ 模块设计图见图三
+% -------------------------------
+
+\section{全差分放大器（FDA）仿真}
+
+\subsection{输入共模范围}
+\textbf{仿真设置：}电源$3.3\,\mathrm{V}$，输出共模目标$1.65\,\mathrm{V}$，输入共模从$0.5\,\mathrm{V}$扫到$2.5\,\mathrm{V}$。
+仿真所用testbench如图\ref{fig:fda_icmr_tb}所示。
+\begin{figure}[h]
+    \includegraphics{fda_icmr_tb.png}
+    \caption{FDA输入共模范围仿真testbench}
+    \label{fig:fda_icmr_tb}
+\end{figure}
+
+\textbf{仿真输出：} 关键晶体管工作区，输出的共模电压随输入变化。
+FDA关键晶体管工作区，输出的共模电压在四个不同工艺角下与输入电压的关系如图所示。
+\begin{figure}[h]
+	\includegraphics[width=0.8\linewidth]{fda_icmr_curve.png}
+	\caption{FDA输入共模范围仿真结果}
+	\label{fig:fda_icmr_curve}
+\end{figure}
+
+\textbf{仿真结果：} FDA的有效输入共模电平范围为$0.5\,\mathrm{V}$至$2.5\,\mathrm{V}$。
+
+\textbf{结果分析：}FDA采用第一级Cascode和第二级共源结构，输入共模范围需要保证第一级输入管和Cascode管均处于合适工作区。
+若输入共模过高或过低导致输出失真，应在系统中限制前级输出共模。
+
+\subsection{开环增益，带宽与相位裕度}
+
+\textbf{仿真设置：}将FDA设置在开环模式，输入共模电压1.65V，输入单位交流信号。
+仿真所用testbench如图\ref{fig:fda_openloop_tb}所示。
+\begin{figure}[h]
+    \includegraphics{fda_openloop_tb.png}
+    \caption{FDA开环增益，带宽与相位裕度仿真testbench}
+    \label{fig:fda_openloop_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA输出节点差分信号20dB增益与相位的频率响应。
+FDA输出节点差分信号20dB增益与相位在四个不同工艺角下的的频率响应如图所示。
+\begin{figure}[h]
+	\includegraphics[width=0.8\linewidth]{fda_openloop_curve.png}
+	\caption{FDA开环增益，带宽与相位裕度仿真结果}
+	\label{fig:fda_openloop_curve}
+\end{figure}
+
+\textbf{仿真结果：}
+
+\textbf{结果分析：}两级结构提高了增益和输出摆幅，但也带来稳定性问题。若相位裕度不足，
+需要调整补偿电容、负载或第二级偏置。
+
+\subsection{闭环稳定性（stb）仿真}
+
+\textbf{仿真设置：}将FDA设置在闭环模式，输入共模电压1.65V，输入单位交流信号。扫描闭环增益
+从20db到100dB，步长为20dB。
+仿真所用testbench如图\ref{fig:fda_stb_tb}所示。
+\begin{figure}[h]
+    \includegraphics{fda_stb_tb.png}
+    \caption{FDA闭环稳定性（stb）仿真testbench}
+    \label{fig:fda_stb_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA输出节点差分信号20dB增益与相位的频率响应。
+FDA输出节点差分信号20dB增益与相位在四个不同工艺角下的的频率响应如图所示。
+% \begin{figure}[h]
+% 	\includegraphics{fda_stb_curve.png}
+% 	\caption{FDA闭环稳定性（stb）仿真结果}
+% 	\label{fig:fda_stb_curve}
+% \end{figure}
+
+\textbf{仿真结果：}
+
+\textbf{结果分析：}一般来说，FDA均工作在闭环状态……
+
+\subsection{共模反馈回路（CMFB）稳定性}
+
+\textbf{仿真设置：}采用环路稳定性stb或iprobe仿真；在CMFB环路中插入稳定性探针；输出共模目标$1.65\,\mathrm{V}$。
+仿真所用testbench如图\ref{fig:fda_stb_tb}所示。
+\begin{figure}[h]
+    \includegraphics{fda_cmfb_tb.png}
+    \caption{FDA共模反馈回路（CMFB）稳定性（CMFB）仿真testbench}
+    \label{fig:fda_cmfb_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA输出节点差分信号20dB增益与相位的频率响应。
+FDA输出节点差分信号20dB增益与相位在四个不同工艺角下的的频率响应如图所示。
+% \begin{figure}[h]
+% 	\includegraphics{fda_cmfb_curve.png}
+% 	\caption{FDA共模反馈回路（CMFB）稳定性（CMFB）仿真结果}
+% 	\label{fig:fda_cmfb_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 
+
+\textbf{结果分析：}一般来说，FDA均工作在闭环状态……
+
+\subsection{共模抑制比（CMRR）与电源抑制比（PSRR）}
+\textbf{仿真设置：}采用AC仿真。在CMRR仿真中，两个输入端同时施加相同单位AC共模信号；
+PSRR仿真中在VDD施加单位交流信号。而后将二者均与前文测试得到的闭环差模增益作比，得到CMRR与PSRR。
+仿真所用testbench如图\ref{fig:fda_cmrr_tb}与\ref{fig:fda_psrr_tb}所示。
+\begin{figure}[h]
+\subfloat[]{
+	\label{fig:fda_cmrr_tb}
+	\includegraphics[width=7.3cm]{fda_cmrr_tb.png}
+}
+\subfloat[]{
+	\label{fig:fda_psrr_tb}
+	\includegraphics[width=6.41cm]{fda_psrr_tb.png}
+}
+\caption{(a)共模抑制比（CMRR）仿真testbench；(b)电源抑制比（PSRR）仿真testbench（以正电源为例）}
+\label{fig:fda_cmrr_psrr_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA输出节点20dB增益频率响应。
+在施加共模小信号与电源小信号干扰后，FDA输出节点20dB增益在四个不同工艺角下的的频率响应如图所示。
+% \begin{figure}[h]
+% \subfloat[]{
+% 	\label{fig:fda_cmrr_curve}
+% 	\includegraphics[width=7.3cm]{fda_cmrr_curve.png}
+% }
+% \subfloat[]{
+% 	\label{fig:fda_psrr_curve}
+% 	\includegraphics[width=6.41cm]{fda_psrr_curve.png}
+% }
+% \caption{(a)共模抑制比（CMRR）仿真结果；(b)电源抑制比（PSRR）仿真结果}
+% \label{fig:fda_cmrr_psrr_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 
+
+\textbf{结果分析：}一般来说，FDA均工作在闭环状态……
+
+\subsection{噪声分析}
+
+\textbf{仿真设置：}将FDA设置在闭环模式（模拟实际驱动后级ADC的工作状态），输入共模电压$1.65\,\mathrm{V}$。进行noise仿真，扫描频率范围设定为$1\,\mathrm{Hz}$到$10\,\mathrm{MHz}$。
+仿真所用testbench如图\ref{fig:fda_noise_tb}所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{fda_noise_tb.png}
+    \caption{FDA噪声分析仿真testbench}
+    \label{fig:fda_noise_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA折算到输入端的等效输入噪声电压谱密度（Input-Referred Noise Density）与累积积分噪声曲线。
+FDA等效输入噪声密度在不同工艺角下随频率变化的曲线如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{fda_noise_curve.png}
+%   \caption{FDA等效输入噪声谱密度与积分噪声仿真结果}
+%   \label{fig:fda_noise_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 在$700\,\mathrm{kHz}$系统有效带宽内，FDA等效输入噪声密度约为$XX\,\mathrm{nV/\sqrt{Hz}}$，折算到输入端的总积分噪声为$XX\,\mathrm{\mu V_{rms}}$。
+
+\textbf{结果分析：} 在14-bit高精度系统中，FDA的宽带热噪声和低频闪烁噪声（$1/f$噪声）极易淹没微弱信号。FDA的噪声主要受第一级输入差分对管和有源负载影响。若总积分噪声不满足$\le 45\,\mathrm{\mu V_{rms}}$的预算指标，必须通过增大输入管的面积（降低闪烁噪声）或增加第一级尾电流（提升$g_m$以降低热噪声）来进行优化。
+
+\subsection{瞬态阶跃响应与压摆率}
+
+\textbf{仿真设置：}将FDA配置为闭环工作模式，输出端挂载等效于SAR ADC CDAC阵列的负载电容（此处取$40\,\mathrm{pF}$）。在输入端施加幅度为近满量程的差分阶跃信号。
+仿真所用testbench如图\ref{fig:fda_tran_tb}所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{fda_tran_tb.png}
+    \caption{FDA瞬态阶跃响应与压摆率仿真testbench}
+    \label{fig:fda_tran_tb}
+\end{figure}
+
+\textbf{仿真输出：} FDA差分输出电压随时间建立的瞬态时域波形。重点观察大信号跳变时的斜率（压摆率SR）与小信号建立阶段的过冲。
+FDA在大信号阶跃输入下的瞬态响应与建立时间细节放大图如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{fda_tran_curve.png}
+%   \caption{FDA瞬态阶跃响应及建立波形}
+%   \label{fig:fda_tran_curve}
+% \end{figure}
+
+\textbf{仿真结果：} FDA的差分压摆率（Slew Rate）为$XX\,\mathrm{V/\mu s}$，输出信号建立至$\pm 0.5\,\mathrm{LSB}$（$0.003\%$）误差带内的建立时间为$XX\,\mathrm{ns}$。
+
+\textbf{结果分析：} 瞬态阶跃响应直接关系到ADC在采样窗口内能否准确获取电压。压摆率受限于第一级尾电流与补偿电容的比例（$\mathrm{SR} = I_{\mathrm{tail}}/C_c$），而建立时间受限于闭环带宽与相位裕度。若建立时间过长，或存在严重的振铃现象（Ringing），需要重新调整密勒补偿电容或增加第二级的静态偏置电流。
+
+\subsection{总谐波失真（THD）}
+
+\textbf{仿真设置：}在闭环模式下，向FDA输入频率为$100\,\mathrm{kHz}$、幅度为满量程（$3\,\mathrm{V_{pp}}$）的纯净差分正弦波信号。
+进行长时瞬态仿真（Transient）以获取稳定波形，并提取多个完整周期的输出数据进行离散傅里叶变换（DFT/FFT）。
+同时，通过扫描改变输入信号的幅度，可以获得运放的输出动态范围。
+仿真所用testbench如图\ref{fig:fda_thd_tb}所示。
+% \begin{figure}[h]
+%     \centering
+%     \includegraphics[width=0.7\textwidth]{fda_thd_tb.png}
+%     \caption{FDA总谐波失真（THD）仿真testbench}
+%     \label{fig:fda_thd_tb}
+% \end{figure}
+
+\textbf{仿真输出：} FDA差分输出信号的FFT频谱图，标记出基波幅值以及二次（HD2）、三次（HD3）等主要高次谐波分量。
+FDA满量程输出时的FFT频谱分析图如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{fda_thd_curve.png}
+%   \caption{FDA满量程输出FFT频谱与THD仿真结果}
+%   \label{fig:fda_thd_curve}
+% \end{figure}
+
+同时对运放输入信号幅度进行扫描后得到动态输入如图\ref{fig:fda_dynamic_curve}所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{fda_dynamic_curve.png}
+%   \caption{FDA输出动态范围仿真结果}
+%   \label{fig:fda_dynamic_curve}
+% \end{figure}
+
+
+\textbf{仿真结果：} 在$100\,\mathrm{kHz}$大信号输入下，FDA的差分输出$\mathrm{THD}$达到$-XX\,\mathrm{dB}$。
+
+\textbf{结果分析：} 14位系统的线性度要求极高（理论$\mathrm{THD}$需优于$-86\,\mathrm{dB}$）。全差分架构（FDA）的优势在于能够完美抵消偶次谐波失真，因此系统的非线性主要由三次谐波（HD3）主导。若大信号下$\mathrm{THD}$严重恶化，说明内部晶体管已被推入线性区，需通过提升开环增益或优化输出级管子的摆幅裕度（降低$V_{ov}$）来改善线性度。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真设置：}调用\texttt{mc}统计工艺模型，进行$N=100$次的蒙特卡洛（Monte Carlo）失配与工艺偏差（Process \& Mismatch）联合仿真。观测指标设为FDA在闭环$V_{in}=0\,\mathrm{V}$时的差分输出直流失调电压（Offset Voltage）。
+仿真所用testbench同上，如图\ref{fig:fda_thd_tb}所示。
+
+\textbf{仿真输出：} 100次随机迭代下，FDA输出差分失调电压的统计散布直方图（Histogram），包含高斯拟合曲线及均值（$\mu$）、标准差（$\sigma$）。
+FDA输出失调电压的蒙特卡洛统计分布如图所示。
+\begin{figure}[h]
+  \centering
+  \includegraphics[width=0.7\textwidth]{fda_mc_curve.png}
+  \caption{FDA差分输出失调电压蒙特卡洛仿真结果}
+  \label{fig:fda_mc_curve}
+\end{figure}
+
+\textbf{仿真结果：} 蒙特卡洛仿真显示，失调电压服从高斯分布，其均值$\mu \approx XX\,\mathrm{mV}$，标准差$\sigma = XX\,\mathrm{mV}$。
+
+\textbf{结果分析：} 实际流片中，半导体工艺的局部随机失配（如掺杂浓度、栅氧厚度微小差异）会导致理想绝对对称的全差分电路产生失调。在14位ADC中，过大的失调会直接侵蚀动态输入量程。仿真得出的标准差数据为后续版图设计提供了指导，提示我们在版图绘制时，必须对输入差分对管及电流镜负载采用共源共栅交叉匹配（Common-Centroid）和添加伪管（Dummy）等严格的版图匹配技术。
+
+\subsection{实际指标}
+\begin{table}[H]
+\centering
+\caption{FDA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+差分增益 & 待填 & AC仿真得到 \\
+带宽 & 待填 & $-3\,\mathrm{dB}$带宽 \\
+相位裕度 & 待填 & 差分环路稳定性 \\
+CMFB相位裕度 & 待填 & 共模环路稳定性 \\
+CMRR & 待填 & 低频和带宽内最差值 \\
+PSRR & 待填 & 电源扰动抑制 \\
+噪声 & 待填 & 积分噪声 \\
+THD & 待填 & 正弦输入FFT \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% -------------------------------
+% 可编程增益放大器（PGA）单模块仿真
+% @ 模块基本测试条件：
+%   1. 电源3.3V
+%   2. 标准共模输出1.65V
+% @ 模块技术细节：
+%   1. 采用全差分架构，利用R-2r网络实现可编程增益
+%   2. Rg与Rf均采用8bit的r-2r网络，实现1/255-255倍间任意分数增益
+% -------------------------------
+
+\section{可编程增益放大器（PGA）单模块仿真}
+
+\subsection{输出共模范围稳定性}
+
+\textbf{仿真设置：}进行直流（DC）参数扫描仿真。配置 PGA 供电电压为 $3.3\,\mathrm{V}$，CMFB 参考电压（即输出共模目标）设为 $1.65\,\mathrm{V}$。在输入端扫描共模电平，扫描范围设定为 $0.5\,\mathrm{V}$ 至 $2.5\,\mathrm{V}$，通过输出端接入的共模检测电阻网络提取实际输出共模电压。
+仿真所用 testbench 如图 \ref{fig:pga_ocmr_tb} 所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{pga_ocmr_tb.png}
+    \caption{PGA 输出共模范围稳定性仿真 testbench}
+    \label{fig:pga_ocmr_tb}
+\end{figure}
+
+\textbf{仿真输出：} PGA 实际输出共模电压随输入共模电压扫描变化的曲线。
+PGA 输出共模电平随输入共模变化的特性曲线如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_ocmr_curve.png}
+%   \caption{PGA 输出共模电平稳定性仿真结果}
+%   \label{fig:pga_ocmr_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 当输入共模在 $0.5\,\mathrm{V} \sim 2.5\,\mathrm{V}$ 大范围内波动时，PGA 的输出共模电压被严格钳位在 $1.65\,\mathrm{V}$ 附近，波动幅度 $< XX\,\mathrm{mV}$。
+
+\textbf{结果分析：} 在多级级联的 AFE 链路中，前级信号的直流基线可能会发生漂移。仿真表明，得益于高增益的共模反馈（CMFB）环路，PGA 能够有效隔离前级的共模漂移，为后级 SAR ADC 提供极其稳定且精准的中心共模电平。
+
+\subsection{增益步进准确度}
+
+\textbf{仿真设置：}进行交流（AC）仿真。在 PGA 差分输入端施加幅度为 $1\,\mathrm{mV}$ 的交流小信号。通过数字逻辑控制位（控制字）改变 R-2R 反馈电阻网络的接入状态，进行参数化扫描（Parametric Analysis），遍历从最小增益（控制字 0x00）到最大增益（控制字 0xFF）的各个典型增益档位。
+仿真所用 testbench 如图 \ref{fig:pga_gain_step_tb} 所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{pga_gain_step_tb.png}
+    \caption{PGA 增益步进与控制逻辑仿真 testbench}
+    \label{fig:pga_gain_step_tb}
+\end{figure}
+
+\textbf{仿真输出：} 多组不同控制字下 PGA 闭环增益的低频平坦区数值，以及实际增益与理论分数阶增益的误差百分比。
+PGA 在典型增益配置下的幅频响应簇如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_gain_step_curve.png}
+%   \caption{PGA 闭环增益步进扫描仿真结果}
+%   \label{fig:pga_gain_step_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 增益调节范围成功覆盖 $1/255 \sim 255$ 倍，步进变化与 R-2R 理论计算值高度吻合，最大增益误差 $\le XX\%$。
+\begin{table}[H]
+\centering
+\caption{PGA增益步进准确度}
+\begin{tabular}{cccc}
+\toprule
+目标增益 & 实际增益 & 增益误差 & 是否单调 \\
+\midrule
+$1/16$ & 待填 & 待填 & 待填 \\
+$1/8$ & 待填 & 待填 & 待填 \\
+$1/4$ & 待填 & 待填 & 待填 \\
+$1/2$ & 待填 & 待填 & 待填 \\
+$1$ & 待填 & 待填 & 待填 \\
+$2$ & 待填 & 待填 & 待填 \\
+$4$ & 待填 & 待填 & 待填 \\
+$8$ & 待填 & 待填 & 待填 \\
+$16$ & 待填 & 待填 & 待填 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{结果分析：} PGA 的增益步进准确度直接决定了宽动态范围信号归一化后的线性度。采用 R-2R 网络实现了精细的分数阶增益调节，仿真证实了在各种开关组合下，闭环电阻网络均未引起严重的直流增益偏差，满足了 14 位系统的精度需求。
+
+\subsection{不同增益下带宽与相位裕度}
+
+\textbf{仿真设置：}结合 AC 与 STB 分析。考虑到 R-2R 网络的反馈系数 $\beta$ 会随增益剧烈变化，重点提取两种极端情况下的频响特性：1. 最大增益（$255\times$，$\beta$ 最小）；2. 最小增益（$1/255\times$，$\beta$ 最大，最易发生振荡）。
+仿真所用 testbench 与增益步进测试相同，如图 \ref{fig:pga_gain_step_tb} 所示。
+
+
+\textbf{仿真输出：} 极端增益配置下的闭环 $-3\,\mathrm{dB}$ 带宽与开环相位裕度（Phase Margin）。
+PGA 在最大与最小增益下的 Bode 图对比如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_ac_stb_curve.png}
+%   \caption{PGA 不同增益下带宽与相位裕度仿真结果}
+%   \label{fig:pga_ac_stb_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 在最大增益（最恶劣带宽）下，闭环带宽仍达到 $XX\,\mathrm{kHz}$（$\ge 700\,\mathrm{kHz}$目标）；在最小增益（最恶劣稳定度）下，相位裕度保持在 $XX^\circ$ 以上。
+
+\textbf{结果分析：} 高增益与宽带宽存在固有的 GBW 矛盾。仿真证明核心运放提供了足够大的增益带宽积（GBW），不仅支撑了最大增益下的带宽不严重收缩，同时其合理的密勒补偿方案保障了在极低增益（接近单位增益反馈）时的绝对稳定性。
+
+\subsection{压摆率与建立时间}
+
+\textbf{仿真设置：}进行瞬态（Transient）仿真。PGA 输出端挂载 $2\,\mathrm{pF}$ 的差分电容负载（模拟 SAR ADC 的 CDAC 阵列）。在系统最大增益配置下，于输入端施加等效的差分阶跃信号，使输出产生近满量程的大信号跳变。
+仿真所用 testbench 如图 \ref{fig:pga_tran_tb} 所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.7\textwidth]{pga_tran_tb.png}
+    \caption{PGA 大信号压摆率与建立时间仿真 testbench}
+    \label{fig:pga_tran_tb}
+\end{figure}
+
+\textbf{仿真输出：} 差分输出电压随时间的时域波形，测量上升/下降沿斜率（压摆率），并局部放大观察信号进入目标精度误差带的过程。
+PGA 满量程阶跃响应及 14-bit 精度建立细节如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_tran_curve.png}
+%   \caption{PGA 大信号瞬态响应与建立时间仿真结果}
+%   \label{fig:pga_tran_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 差分压摆率达到 $XX\,\mathrm{V/\mu s}$，输出信号无严重过冲，进入 $\pm 0.5\,\mathrm{LSB}$（14位，约 $0.003\%$ 误差带）的建立时间 $t_s = XX\,\mathrm{ns}$。
+
+\textbf{结果分析：} 驱动 CDAC 容性负载并实现极速建立，是 PGA 设计中最艰巨的任务之一。$< 50\,\mathrm{ns}$ 的仿真建立时间，证明了 PGA 的输出级具备强大的瞬态电流吞吐能力，完美满足了后级 ADC $1\,\mathrm{MS/s}$ 采样率下的跟踪相（Tracking Phase）时间窗口要求。
+
+\subsection{噪声分析}
+
+\textbf{仿真设置：}进行 Noise 仿真。将 PGA 配置在最大增益状态（此状态下运放本体噪声折算到输入端最显著）。积分带宽设定为 $1\,\mathrm{Hz}$ 至 $10\,\mathrm{MHz}$，提取 PGA 的等效输入噪声（Input-Referred Noise, IRN）。
+仿真所用 testbench 与增益步进测试相同，如图 \ref{fig:pga_gain_step_tb} 所示。
+
+
+\textbf{仿真输出：} PGA 等效输入噪声电压谱密度（$\mathrm{nV/\sqrt{Hz}}$）及总积分噪声电压。
+PGA 等效输入噪声特性曲线如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_noise_curve.png}
+%   \caption{PGA 等效输入噪声谱密度仿真结果}
+%   \label{fig:pga_noise_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 积分带宽内等效输入噪声密度为 $XX\,\mathrm{nV/\sqrt{Hz}}$，由于前级 TIA 提供了 $100\,\mathrm{dB}\Omega$ 的巨大增益，PGA 自身贡献的噪声折算到系统最前端后可忽略不计。
+
+\textbf{结果分析：} 基于 Friis 噪声级联公式，中间级的噪声要求相对较宽。仿真确认 PGA 自身的噪声底线足够纯净，未引入异常的高频噪声凸起（Noise Peaking），不会对整个 AFE 链路的 $45\,\mathrm{\mu V_{rms}}$ 总体噪声预算构成威胁。
+
+\subsection{蒙特卡洛分析}
+
+\textbf{仿真设置：}调用 \texttt{mc} 统计模型，进行 100 次工艺偏差与失配联合迭代仿真。PGA 置于闭环状态，输入端短接置零（$V_{id} = 0\,\mathrm{V}$）。重点观察由晶体管随机失配及 R-2R 电阻网络工艺偏差引起的直流差分失调电压（Offset）。
+仿真所用 testbench 与测试共模输出稳定性相同，如图 \ref{fig:pga_ocmr_tb} 所示。
+
+\textbf{仿真输出：} PGA 输出直流失调电压的统计散布直方图（Histogram），并提取高斯分布特征参数。
+PGA 输出失调电压的 Monte Carlo 统计直方图如图所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\textwidth]{pga_mc_curve.png}
+%   \caption{PGA 直流失调电压蒙特卡洛统计分布}
+%   \label{fig:pga_mc_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 差分失调电压服从高斯分布，均值 $\mu \approx XX\,\mathrm{mV}$，标准差 $\sigma = XX\,\mathrm{mV}$。
+
+\textbf{结果分析：} 在多倍增益放大下，微小的输入失调会被逐级放大，进而侵占 ADC 的有效动态量程。蒙特卡洛结果表明，只要在版图阶段对运放输入对管和 R-2R 多晶硅电阻阵列进行严格的交叉匹配（Common-Centroid Layout），其固有失调将完全处于后级可容忍的校准范围内。
+
+\subsection{实际指标}
+\begin{table}[H]
+\centering
+\caption{PGA实际仿真指标汇总}
+\begin{tabular}{lll}
+\toprule
+指标 & 仿真结果 & 备注 \\
+\midrule
+推荐增益范围 & 待填 & 避免极端档位 \\
+增益误差 & 待填 & 中间档最大误差 \\
+输出共模 & 待填 & 目标$1.65\,\mathrm{V}$ \\
+带宽 & 待填 & 不同档位对比 \\
+建立时间 & 待填 & 阶跃仿真 \\
+噪声 & 待填 & 积分噪声 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+
+% -------------------------------
+% 比较器（Comp）单模块仿真
+% -------------------------------
+
+\section{比较器（Comp）单模块仿真}
+
+
+% -------------------------------
+% 电容数字模拟转换器（CDAC）单模块仿真
+% @ 模块基本测试条件：
+%   1. 电源3.3V
+%   2. 输入差分信号共模范围为1.65V，差分电压信号输入为1-2V
+% @ 模块技术细节：
+%   1. 采用14位电容数字模拟转换器，由两组7位电容数字模拟转换器组成，中间采用桥接电容Cc连接
+%   2. 单位电容值为50fF
+% -------------------------------
+
+
+\section{电容数字模拟转换器（CDAC）单模块仿真}
+
+

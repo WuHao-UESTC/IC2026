@@ -1,0 +1,15 @@
+根据这个文档，生成绘制相应图像的python代码： 
+
+配色方案（Color Palette）： 请使用高对比度、沉稳且色盲友好的“学术期刊标准色”。优先使用经典的深色系搭配（例如：深海军蓝 Dark Navy、砖红色 Crimson Red、森林绿 Forest Green、琥珀色 Amber）。拒绝使用过于刺眼或饱和度过高的荧光色。
+
+字体规范（Typography）： 统一使用 Times New Roman 或 Arial。标题字号设为 14，坐标轴标签字号设为 12，刻度字号设为 10。支持图例（Legend）显示。
+
+线条与坐标轴（Lines & Axes）： > - 数据线条粗细（linewidth）设置为 1.5 到 2.0 之间。
+坐标轴的刻度线（ticks）必须向内（direction='in'）。
+保留四周的边框线（spine），形成封闭的图表框。
+开启网格线（Grid），但必须是浅灰色（color='gray', alpha=0.3）的虚线，不能喧宾夺主。
+
+特殊要求：横轴frequency为对数坐标
+
+代码必须包含详细的中文注释。
+图表最终需要使用 plt.savefig() 导出，格式为分辨率不低于 600 dpi 的 .png 以及 .svg（矢量图）格式，背景设置为白色（透明度为不透明），并使用 bbox_inches='tight' 去除多余白边。

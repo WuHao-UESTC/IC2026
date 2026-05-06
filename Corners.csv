@@ -1,0 +1,7 @@
+Corner,Asym_FS,Asym_SF,Cold,Hot,BC,WorstCase,WCLowtemp,MaxPower,MaxLeakage
+Enable,t,t,t,t,t,t,t,t,t
+#Temperature,25,25,-40,125,-40,-40,-40,125,125
+Tags,,,,,,,,,
+Vpower,3.3,3.3,3.3,3.3,3.6,3.3,3,3.3,3.6
+Modelfile::/home/Cancellius/Desktop/IC_Design/PDK/tsmc18/models/spectre/spectre.scs,t fs,t sf,t tt,t tt,t ff,t ss,t ss,t ff,t ff
+t Test::ADC3v_tb_L3_ADC_Comp_DT_1,t,t,t,t,t,t,t,t,t

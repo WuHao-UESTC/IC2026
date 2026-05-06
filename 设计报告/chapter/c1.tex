@@ -1,0 +1,107 @@
+\chapter{项目概述与整体指标设计}
+
+\section{项目背景与应用场景}
+
+\section{指标设计}
+面向工业管网的声源定位与故障检测应用，系统必须在复杂恶劣的物理环境中保持高鲁棒性。
+本设计采用 3.3V 供电而非标准的 1.8V，旨在最大化输入信号的差分满量程范围（近 3Vpp），
+从物理层面显著降低了 14 位精度下对前端等效输入噪声的严苛要求。宽温范围（-40°C ~ 85°C）直接对标工业级可靠性标准；
+而总功耗控制在 80mW 以内，是基于前端极低底噪要求与后级高驱动能力所做出的合理工程折中。
+% -------表格1：系统基本工作参数-------
+\begin{table}[htbp]
+  \centering
+  \caption{系统基本工作参数}
+  \begin{tabular}{lc}
+    \toprule
+    Parameter & Specification \\
+    \midrule
+    工艺节点 & TSMC 180nm CMOS \\
+    工作温度范围 & $-40^\circ\text{C} \sim 85^\circ\text{C}$ \\
+    供电电压 (VDD) & 3.3\,V \\
+    满量程输入 (ADC端) & $\approx 3\,\text{V}_\text{pp}$ (全差分) \\
+    系统总功耗 & $<80\,\text{mW}$ \\
+    系统有效位数 (ENOB) & $\ge 12.5\,\text{Bits}$ \\
+    输入光电流 & $0.1\,\text{n} \sim 1\mu\,\text{A}$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:system_spec}
+\end{table}
+
+信号链路的参数分配直接决定了系统对微弱及突变信号的捕获能力。
+700kHz 的有效带宽完美覆盖了典型的工业声发射信号频段，同时在系统前端起到了抗混叠滤波的限制作用。
+PGA 采用 R-2R 结构以支持大范围的分数倍增益步进，确保宽动态范围的传感器信号能被精准归一化至 ADC 的满量程区间。
+此外，要求 PGA 在 50ns 内完成 0.5 LSB 的建立，是支撑 1 MS/s 采样率下 14 位无失真精度的核心动态前提。
+% -------表格2：信号链路指标-------
+\begin{table}[htbp]
+  \centering
+  \caption{信号链路指标}
+  \begin{tabular}{lcc}
+    \toprule
+    Parameter & Specification & Conditions \& Environment \\
+    \midrule
+    系统有效带宽 & $700\,\text{kHz}$ & $\text{Gain} = 1\,\text{V/V}$，小信号输入，$-3\,\text{dB}$ 衰减点 \\
+    增益调节范围 & $\frac{1}{255} \sim 255\,\text{V/V}$ & R-2R 网络配置，$\text{Fin} = 100\,\text{kHz}$ \\
+    输入满量程 & $\approx 3\,\text{V}_\text{pp}$ (差分) & ADC 输入端，共模电压 $V_\text{cm} = 1.65\,\text{V}$ \\
+    阶跃建立时间 & $\le 50\,\text{ns}$ & 满量程阶跃，建立至 $\pm 0.5\,\text{LSB}$ 精度带内 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:signal_chain_spec}
+\end{table}
+
+在 14 位的量化分辨率下，1 LSB 对应的电压值极小，系统的本底噪声成为决定探测极限的关键瓶颈。
+为防止前端热噪声淹没 ADC 自身的理想量化噪声（约 53µVrms），
+本设计强制要求系统折算到 ADC 输入端的总积分噪声限制在 45µVrms 以内。
+同时，高达 80dB 以上的 PSRR 和 CMRR 充分利用了全差分架构的天然优势，
+确保系统能有效免疫工业现场复杂的电源纹波与共模干扰信号。
+% -------表格3：噪声与抗干扰指标-------
+\begin{table}[htbp]
+  \centering
+  \caption{噪声与抗干扰指标}
+  \begin{tabular}{lcc}
+    \toprule
+    指标项 & 目标参数 & 测试/推导条件与环境 \\
+    \midrule
+    等效输入噪声密度 & $\le 8\,\text{nV}/\sqrt{\text{Hz}}$ & $\text{Gain} = 255\times$，频段 $10\,\text{kHz} - 700\,\text{kHz}$ \\
+    系统总积分噪声 & $\le 45\,\mu\text{V}_\text{rms}$ & 积分带宽 $0 \sim 700\,\text{kHz}$，折算到 ADC 输入端 \\
+    1/f 噪声拐角频率 & $< 10\,\text{kHz}$ & 最大增益配置下 \\
+    电源抑制比 (PSRR) & $> 80\,\text{dB}$ & $\text{VDD}$ 施加 $100\,\text{mV}_\text{pp}$，$1\,\text{kHz}$ 正弦纹波 \\
+    共模抑制比 (CMRR) & $> 85\,\text{dB}$ & $\text{Fin} = 1\,\text{kHz}$ 共模干扰信号 \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:noise_spec}
+\end{table}
+
+考虑奈奎斯特采样定律与模拟前端可不失真地采集到的带宽极限，本系统将采样率的设计指标定为1.5 MS/s 。
+为确保真实的 14 位性能落地，对 ENOB（≥ 12.5 Bits）和 SFDR（≥ 90dB）提出了严格下限，
+要求电路必须极力压制内部电容阵列的失配误差与动态比较器的失调。
+此外，本设计特别引入了 25ps 的采样时钟抖动容限，将板级时钟质量对高频输入信号信噪比（SNR）的恶化效应纳入考量，
+体现了从前端信号链到后端采样的闭环设计严谨性。
+% -------表格4：14bit SAR ADC核心指标-------
+\begin{table}[htbp]
+  \centering
+  \caption{14bit SAR ADC核心指标}
+  \begin{tabular}{lcc}
+    \toprule
+    指标项 & 目标参数 & 测试/推导条件与环境 \\
+    \midrule
+    采样率 (Fs) & $1.5\,\text{MS/s}$ & 系统时钟 $16\,\text{MHz} \sim 20\,\text{MHz}$ (视 SAR 控制逻辑而定) \\
+    有效位数 (ENOB) & $\ge 12.5\,\text{Bits}$ & $\text{Fin} = 100\,\text{kHz}$, $\text{Fs} = 1\,\text{MS/s}$，近满量程输入 \\
+    信噪失真比 (SNDR) & $\ge 77\,\text{dB}$ & 同上 (通过 FFT 计算得到) \\
+    无杂散动态范围 (SFDR) & $\ge 90\,\text{dB}$ & $\text{Fin} = 100\,\text{kHz}$, $\text{Fs} = 1\,\text{MS/s}$ \\
+    总谐波失真 (THD) & $\le -88\,\text{dB}$ & 输入 $-1\,\text{dBFS}$ 信号 \\
+    微分非线性 (DNL) & $\le \pm 0.8\,\text{LSB}$ & 码密度测试法 (Histogram) \\
+    积分非线性 (INL) & $\le \pm 1.5\,\text{LSB}$ & 码密度测试法 (Histogram) \\
+    采样时钟抖动容限 & $\le 25\,\text{ps}_\text{rms}$ & 推导条件: $\text{SNR}_\text{jitter} = -20\log(2\pi \cdot \text{Fin} \cdot t_\text{jitter})$ \\
+    \bottomrule
+  \end{tabular}
+  \label{tab:sar_adc_spec}
+\end{table}
+
+
+
+
+\section{系统亮点展示}
+
+
+
+
