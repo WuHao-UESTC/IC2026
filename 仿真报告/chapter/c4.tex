@@ -1,1 +1,172 @@
 \chapter{动态性能验证}
+分别对SAR ADC和整体系统进行数模混合仿真。加载正弦波作为输入信号，观察输出结果。
+
+\section{SAR ADC动态性能验证}
+本节首先脱离前级TIA与PGA，仅对SAR ADC核心进行前仿动态验证，主要观察CDAC开关、
+同步比较器、SAR控制逻辑与SPI输出之间的时序配合。
+
+\textbf{仿真设置：}系统电源设置为$V_{\mathrm{CC}}=3.3\,\mathrm{V}$，地电位为
+$0\,\mathrm{V}$，ADC内部共模电压取$V_{\mathrm{CM}}=1.65\,\mathrm{V}$。
+SAR控制逻辑工作时钟为$50\,\mathrm{MHz}$。CDAC采用14位全差分结构，正负两侧各
+包含两段二进制权重电容阵列，每段电容为
+$(1,2,4,8,16,32,64)\times 50\,\mathrm{fF}$，两段上极板之间通过
+$50\,\mathrm{fF}$桥接电容连接。低13位电容下极板在
+$V_{\mathrm{top}}=3.3\,\mathrm{V}$与$V_{\mathrm{bot}}=0\,\mathrm{V}$之间切换，
+MSB可在输入端与$V_{\mathrm{CM}}$之间切换。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入SAR ADC核心前仿原理图或testbench}}
+    \caption{SAR ADC核心动态性能验证testbench}
+    \label{fig:sar_adc_dynamic_tb}
+\end{figure}
+
+\textbf{仿真输入：}输入端直接施加以$V_{\mathrm{CM}}$为偏置、幅度为
+$0.4\,\mathrm{V}$的正弦电压信号，分别选取$27\,\mathrm{kHz}$和
+$100\,\mathrm{kHz}$两种频率进行验证。仿真中记录输入差分信号
+$V_{\mathrm{in,diff}}=V_{\mathrm{in+}}-V_{\mathrm{in-}}$，并同步观察比较器输入
+\texttt{comp\_in+}/\texttt{comp\_in-}。同步比较器采用正向输出作为判决信号：
+当$V_p>V_n$时输出拉低，否则保持高电平；SAR逻辑在时钟下降沿抓取比较结果。
+
+\textbf{仿真输出：}主要观测信号包括输入差分信号、比较器输入端差分电压、比较器输出、
+\texttt{vcm\_sw}、CDAC各位开关控制信号、内部逐次逼近结果
+\texttt{data\_out<13:0>}，以及外部SPI接收数据\texttt{last\_rx<13:0>}。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz输入下SAR ADC转换波形}}
+    \caption{SAR ADC在$27\,\mathrm{kHz}$输入下的动态转换波形}
+    \label{fig:sar_adc_dynamic_wave_27k}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz输入下SAR ADC转换波形}}
+    \caption{SAR ADC在$100\,\mathrm{kHz}$输入下的动态转换波形}
+    \label{fig:sar_adc_dynamic_wave_100k}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入预采样、逐位比较、数据打包与SPI更新时序图}}
+    \caption{SAR ADC转换控制逻辑与SPI输出时序}
+    \label{fig:sar_adc_dynamic_timing}
+\end{figure}
+
+\textbf{结果分析：}仿真结果表明，预采样阶段正负两侧CDAC上极板被接入
+$V_{\mathrm{CM}}$，比较器输入端电压基本一致；MSB切换后，比较器输入端产生与输入极性
+相关的差分电压。逐bit比较过程中，比较器输入差分会随CDAC切换出现阶跃变化，随后在低位
+逐次修正下逐步逼近零点。内部\texttt{data\_out<13:0>}随转换过程持续更新，而
+\texttt{last\_rx<13:0>}保持上一拍结果，直到本次采样完成后统一更新。一次完整采样转换
+时间约为$2.748\,\mathrm{\mu s}$，对应采样率约为
+\[
+    f_s=\frac{1}{2.748\,\mathrm{\mu s}}\approx 363.9\,\mathrm{kS/s}.
+\]
+在$27\,\mathrm{kHz}$和$100\,\mathrm{kHz}$输入下，输出码均随输入正弦信号周期性变化，
+说明SAR ADC核心的动态采样、逐次逼近和SPI输出流程能够正常工作。
+
+\section{系统动态性能验证}
+本节在SAR ADC前接入TIA与PGA，验证模拟前端输出驱动SAR ADC时的动态响应。系统链路为
+电流输入$\rightarrow$TIA$\rightarrow$PGA$\rightarrow$SAR ADC$\rightarrow$SPI输出。
+
+\textbf{仿真设置：}系统电源仍为$3.3\,\mathrm{V}$，SAR ADC时钟为
+$50\,\mathrm{MHz}$。PGA增益设置为8倍，PGA输出直接作为SAR ADC输入端，即本节中的
+\texttt{vin}节点。SAR ADC内部CDAC、比较器和数字逻辑设置与上一节保持一致。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入TIA+PGA+SAR ADC系统动态仿真testbench}}
+    \caption{接入TIA与PGA后的SAR ADC系统动态仿真testbench}
+    \label{fig:system_dynamic_tb}
+\end{figure}
+
+\textbf{仿真输入：}在前端手动施加正弦电流激励，电流偏置为$50\,\mathrm{nA}$，
+正弦幅度为$0.1\,\mathrm{nA}$，频率分别取$27\,\mathrm{kHz}$和
+$100\,\mathrm{kHz}$。该电流经TIA转换并由PGA放大后进入SAR ADC。仿真中PGA输出电压
+幅值约为$780\,\mathrm{mV}$。
+
+\textbf{仿真输出：}主要观察PGA输出端\texttt{vin}、比较器输入端
+\texttt{comp\_in+}/\texttt{comp\_in-}、比较器输出、SAR内部数据
+\texttt{data\_out<13:0>}和SPI接收数据\texttt{last\_rx<13:0>}。同时记录
+\texttt{vcm\_sw}与CDAC下极板开关信号，用于确认采样、比较和输出更新时序是否与
+SAR ADC单独验证时一致。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz电流输入下PGA输出与ADC输出波形}}
+    \caption{系统在$27\,\mathrm{kHz}$电流输入下的动态仿真波形}
+    \label{fig:system_dynamic_wave_27k}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz电流输入下PGA输出与ADC输出波形}}
+    \caption{系统在$100\,\mathrm{kHz}$电流输入下的动态仿真波形}
+    \label{fig:system_dynamic_wave_100k}
+\end{figure}
+
+\textbf{结果分析：}接入TIA与PGA后，PGA输出端能够形成随输入电流周期变化的正弦电压，
+输出幅值约为$780\,\mathrm{mV}$。对应地，SAR ADC输出码随PGA输出周期性上升和下降，
+说明前端模拟链路与ADC采样逻辑之间的幅度关系和时序关系基本正确。与SAR ADC单独仿真
+相比，系统级波形中在\texttt{vin}节点和比较器输入端会出现更明显的毛刺与尖峰，主要
+来自CDAC开关切换和比较器再生过程对前级节点的回踢噪声。该尖峰主要集中在采样切换和
+逐位比较瞬间，未改变输出码随输入信号周期变化的整体趋势。
+
+在$27\,\mathrm{kHz}$和$100\,\mathrm{kHz}$两种输入频率下，\texttt{data\_out<13:0>}
+仍在单次转换过程中逐位更新，\texttt{last\_rx<13:0>}仍在转换完成后统一锁存。说明接入
+TIA与PGA后，SAR控制逻辑和SPI输出流程保持正常；但回踢噪声会对前端输出和比较器输入
+产生瞬态扰动，后续版图与系统优化中需要关注ADC输入端隔离、采样开关尺寸以及PGA输出
+驱动能力。
+
+\section{PD混合动态性能验证}
+本节将上一节中的理想电流激励替换为S5973型PIN光电二极管，进一步验证光电转换器件接入
+后，PD、TIA、PGA与SAR ADC组成的混合信号链路是否能够完成动态采样和数字输出。
+
+\textbf{仿真设置：}S5973 PIN光电二极管工作在光伏模式下，即PD两端不额外施加反向偏压。
+PD输出接入TIA输入端，后级依次连接PGA和SAR ADC。系统电源、SAR ADC时钟、CDAC开关
+设置以及SPI输出流程与前两节保持一致。本次仿真中PGA增益设置为32倍，用于将PD产生的
+小信号电流进一步放大到ADC可观测的输入范围。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入S5973 PD+TIA+PGA+SAR ADC混合仿真testbench}}
+    \caption{接入S5973光电二极管后的系统动态仿真testbench}
+    \label{fig:pd_dynamic_tb}
+\end{figure}
+
+\textbf{仿真输入：}光输入端设置为$1\,\mathrm{nW}$偏置叠加$50\,\mathrm{pW}$正弦光功率。
+在仿真中通过$1\,\mathrm{nV}$直流偏置叠加$50\,\mathrm{pV}$正弦电压的方式控制光功率
+激励，输入频率分别取$27\,\mathrm{kHz}$和$100\,\mathrm{kHz}$。该光功率经PD转换为
+光电流后进入TIA，并经PGA放大后驱动SAR ADC，PGA输出电压幅值约为
+$750\,\mathrm{mV}$。
+
+\textbf{仿真输出：}主要观察PD输出电流、PGA输出端\texttt{vin}、比较器输入端
+\texttt{comp\_in+}/\texttt{comp\_in-}、同步比较器输出、SAR内部数据
+\texttt{data\_out<13:0>}和SPI接收数据\texttt{last\_rx<13:0>}。同时记录
+\texttt{vcm\_sw}与CDAC开关控制信号，用于确认采样、逐位比较和输出锁存时序。
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz光输入下PD系统动态仿真波形}}
+    \caption{PD混合系统在$27\,\mathrm{kHz}$光输入下的动态仿真波形}
+    \label{fig:pd_dynamic_wave_27k}
+\end{figure}
+
+\begin{figure}[H]
+    \centering
+    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz光输入下PD系统动态仿真波形}}
+    \caption{PD混合系统在$100\,\mathrm{kHz}$光输入下的动态仿真波形}
+    \label{fig:pd_dynamic_wave_100k}
+\end{figure}
+
+\textbf{结果分析：}仿真结果显示，使用S5973光电二极管替代理想电流源后，PGA输出端仍能
+得到随光功率正弦变化的电压信号，输出幅值约为$750\,\mathrm{mV}$。SAR ADC输出码也随输入光信号周期性上升和下降。说明
+在光伏工作模式下，PD产生的光电流能够被TIA和PGA有效转换、放大，并被后级SAR ADC完成
+采样与数字化。
+
+与理想电流源输入的系统仿真类似，CDAC开关切换和比较器再生会在\texttt{vin}节点及
+\texttt{comp\_in+}/\texttt{comp\_in-}节点产生瞬态毛刺和尖峰。由于本节输入端接入了
+实际PD模型，前端节点阻抗和寄生效应会参与瞬态响应，因此毛刺形态相较理想电流源输入
+可能更加明显。总体来看，在$27\,\mathrm{kHz}$和$100\,\mathrm{kHz}$两种光输入频率下，
+\texttt{data\_out<13:0>}和\texttt{last\_rx<13:0>}仍保持正常更新关系，系统级动态
+转换流程有效。
