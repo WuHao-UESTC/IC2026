@@ -1,0 +1,20 @@
+,Parameter,Nominal,,,,,,Asym_FS,Asym_SF,Cold,Hot,BC,WorstCase,WCLowtemp,MaxPower,MaxLeakage
+,Vpower,3.3,,,,,,3.3,3.3,3.3,3.3,3.6,3.3,3,3.3,3.6
+,spectre.scs,tt,,,,,,fs,sf,tt,tt,ff,ss,ss,ff,ff
+,temperature,27,,,,,,25,25,-40,125,-40,-40,-40,125,125
+
+Test,Output,Nominal,Spec,Weight,Pass/Fail,Min,Max,Asym_FS,Asym_SF,Cold,Hot,BC,WorstCase,WCLowtemp,MaxPower,MaxLeakage
+IC_Design_tb_L3_ADC_COMP_DT_1,Delay_cmp,1.22e-9,range 250p 2n,,pass,894.2e-12,1.516e-9,1.214e-9,1.214e-9,1.012e-9,1.516e-9,894.2e-12,1.139e-9,1.194e-9,1.364e-9,1.333e-9
+IC_Design_tb_L3_ADC_COMP_DT_1,Delay_rst,1.421e-9,range 500p 2n,,pass,1.046e-9,1.721e-9,1.415e-9,1.415e-9,1.21e-9,1.721e-9,1.046e-9,1.339e-9,1.47e-9,1.563e-9,1.461e-9
+IC_Design_tb_L3_ADC_COMP_DT_1,T_cmp,919.2e-12,< 2n,,pass,669.5e-12,1.157e-9,914.3e-12,914.3e-12,752e-12,1.157e-9,669.5e-12,852.9e-12,880.8e-12,1.036e-9,1.026e-9
+IC_Design_tb_L3_ADC_COMP_DT_1,T_rst,879.2e-12,< 2n,,pass,635.3e-12,1.082e-9,875e-12,875e-12,738e-12,1.082e-9,635.3e-12,816.9e-12,897.6e-12,980.9e-12,915.3e-12
+IC_Design_tb_L3_ADC_COMP_DT_1,Latch_tau,62.68e-12,< 100p,,pass,43.83e-12,78.77e-12,62.38e-12,62.38e-12,51.28e-12,78.77e-12,43.83e-12,56.97e-12,65.14e-12,72.16e-12,66.7e-12
+IC_Design_tb_L3_ADC_COMP_DT_1,IRN_50m,79.39e-6,< 104u,,pass,66.78e-6,88.78e-6,79.06e-6,79.06e-6,69.91e-6,88.78e-6,66.78e-6,70.23e-6,73.99e-6,88.62e-6,85.44e-6
+IC_Design_tb_L3_ADC_COMP_DT_1,IRN_100m,79.36e-6,< 104u,,pass,66.99e-6,88.92e-6,79.07e-6,79.07e-6,69.98e-6,88.92e-6,66.99e-6,70.25e-6,73.87e-6,88.64e-6,85.38e-6
+IC_Design_tb_L3_ADC_COMP_DT_1,IRN_200m,78.68e-6,< 104u,,pass,66.82e-6,87.89e-6,78.45e-6,78.45e-6,69.61e-6,87.89e-6,66.82e-6,70.08e-6,73.1e-6,87.52e-6,84.85e-6
+IC_Design_tb_L3_ADC_COMP_DT_1,IRN_400m,77.32e-6,< 104u,,pass,65.29e-6,87.77e-6,77.02e-6,77.02e-6,67.54e-6,87.43e-6,65.29e-6,67.5e-6,70.44e-6,87.77e-6,84.35e-6
+IC_Design_tb_L3_ADC_COMP_DT_1,EnergyPerSa,18.87e-12,< 25p,,near,14.1e-12,25.07e-12,18.85e-12,18.85e-12,18.29e-12,19.65e-12,23.41e-12,17.54e-12,14.1e-12,20.62e-12,25.07e-12
+IC_Design_tb_L3_ADC_COMP_DT_1,Current,343.1e-6,< 500u,,pass,281.9e-6,417.8e-6,342.8e-6,342.8e-6,332.6e-6,357.3e-6,390.1e-6,318.9e-6,281.9e-6,374.9e-6,417.8e-6
+IC_Design_tb_L3_ADC_COMP_DT_1,Power,1.132e-3,< 1.5m,,near,845.7e-6,1.504e-3,1.131e-3,1.131e-3,1.098e-3,1.179e-3,1.404e-3,1.052e-3,845.7e-6,1.237e-3,1.504e-3
+IC_Design_tb_L3_ADC_COMP_DT_1,FoM1,109.2,< 300,,pass,67.36,187.5,107.8,107.8,67.36,179.8,70.31,73.82,67.74,167.9,187.5
+

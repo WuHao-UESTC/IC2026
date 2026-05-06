@@ -1,0 +1,36 @@
+Name,Type,Output,EvalType,Plot,PlotTarget,Save,Spec,origexpr
+Delay_cmp,expr,(cross(DCMP_N (VAR("Vpower") / 2) 1 "rising" nil nil nil) - cross(vtime('pss "/CLKC") (VAR("Vpower") / 2) 1 "rising" nil nil nil)),point,t,,,range 250p 2n,
+Delay_rst,expr,(cross(DCMP_N (VAR("Vpower") / 2) 1 "falling" nil nil nil) - cross(vtime('pss "/CLKC") (VAR("Vpower") / 2) 1 "falling" nil nil nil)),point,t,,,range 500p 2n,
+T_cmp,expr,(cross(DCMP_N 1.65 1 "rising" nil nil nil) - cross(vtime('pss "/TAIL") 1.65 1 "rising" nil nil nil)),point,t,,,< 2n,(cross(DCMP_N 0.9 1 "rising" nil nil nil) - cross(vtime('pss "/CLKC") 0.9 1 "rising" nil nil nil))
+T_rst,expr,(cross(DCMP_N 0.001 1 "falling" nil nil nil) - cross(vtime('pss "/RST") 1.65 1 "rising" nil nil nil)),point,t,,,< 2n,(cross(DCMP_N 0.001 1 "falling" nil nil nil) - cross(vtime('pss "/RST") (VAR("Vpower") / 2) 1 "rising" nil nil nil))
+Latch_tau,expr,(cross(Latch 0.271828 1 "rising" nil nil nil) - cross(Latch 0.1 1 "rising" nil nil nil)),point,t,,,< 100p,(cross(Latch 0.271828 1 "rising" nil nil nil) - cross(Latch 0.1 1 "rising" nil nil nil))
+IRN_50m,expr,(IntNoise_50m / (0.05 / VAR("Vtest"))),point,t,,,< 104u,
+IRN_100m,expr,(IntNoise_100m / (0.1 / VAR("Vtest"))),point,t,,,< 104u,
+IRN_200m,expr,(IntNoise_200m / (0.2 / VAR("Vtest"))),point,t,,,< 104u,
+IRN_400m,expr,(IntNoise_400m / (0.4 / VAR("Vtest"))),point,t,,,< 104u,(0.1 / VAR("Vtest"))
+EnergyPerSa,expr,((abs(average(itime('pss "/V0/PLUS"))) * VAR("Vpower")) / VAR("Fc")),point,t,,,< 25p,((abs(average(itime('pss "/V0/PLUS"))) * VAR("Vpower")) / VAR("Fc"))
+Current,expr,abs(average(itime('pss "/V0/PLUS"))),point,t,,,< 500u,
+Power,expr,(EnergyPerSa * VAR("Fc")),point,t,,,< 1.5m,
+FoM1,expr,(IRN_100m * IRN_100m * EnergyPerSa * T_cmp * 1e+09 * 1e+12 * 1e+09),point,t,,,< 300,(Noise * Noise * EnergyPerSa) * 1e+12 * 1e+9
+CLKC,expr,vtime('pss "/CLKC"),point,t,,,,
+CLK_Latch,expr,vtime('pss "/RST"),point,t,,,,
+CLK_Amp,expr,vtime('pss "/TAIL"),point,t,,,,
+Vin_DM,expr,(VINP - VINN),point,t,,,,
+VINP,expr,vtime('pss "/VINP"),point,,,,,
+VINN,expr,vtime('pss "/VINN"),point,,,,,
+PreAmp,expr,(XP - XN),point,t,,,,
+XP,expr,vtime('pss "/I0/XP"),point,t,,,,
+XN,expr,vtime('pss "/I0/XN"),point,t,,,,
+Latch,expr,(LP - LN),point,t,,,,
+Latch_N,expr,(LN - LP),point,t,,,,
+LP,expr,vtime('pss "/I0/LP"),point,t,,,,
+LN,expr,vtime('pss "/I0/LN"),point,t,,,,
+DCMP,expr,(DCMPP - DCMPN),point,t,,,,
+DCMP_N,expr,(DCMPN - DCMPP),point,t,,,,
+DCMPP,expr,vtime('pss "/DCMPP"),point,t,,,,
+DCMPN,expr,vtime('pss "/DCMPN"),point,t,,,,
+Current_VDD,expr,itime('pss "/V0/PLUS"),point,,,,,
+IntNoise_50m,expr,ymax(pow(integ(pow(clip(getData("out" ?result "pnoise_sample_pm3") 1 20000000) 2)) 0.5)),point,,,,,
+IntNoise_100m,expr,ymax(pow(integ(pow(clip(getData("out" ?result "pnoise_sample_pm2") 1 20000000) 2)) 0.5)),point,,,,,
+IntNoise_200m,expr,ymax(pow(integ(pow(clip(getData("out" ?result "pnoise_sample_pm1") 1 20000000) 2)) 0.5)),point,,,,,
+IntNoise_400m,expr,ymax(pow(integ(pow(clip(getData("out" ?result "pnoise_sample_pm0") 1 20000000) 2)) 0.5)),point,,,,,
