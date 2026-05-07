@@ -1,62 +1,113 @@
-
-@article{li2010new,
-  title = {New Memory Method of Impedance Elements for Marching-on-in-Time Solution of Time-Domain Integral Equation},
-  author = {Li, Jin Yan and \textbf{Zhang,San} and Zhao, Yan Wen and Nie, Zai Ping},
-  journal = {Electromagnetics},
-  volume = {30},
-  number = {5},
-  pages = {448--462},
-  year = {2010},
-  publisher = {Taylor \& Francis}
+% 1. SAR ADC 期刊论文 (Mahdavi 等)
+@article{Mahdavi2020SAR,
+  author  = {Mahdavi, Maryam and Lotfi, Reza},
+  journal = {AEU - International Journal of Electronics and Communications},
+  title   = {A 1.7 {MS/s} {SAR} {ADC} with energy-efficient switching strategy},
+  year    = {2020},
+  volume  = {114},
+  pages   = {152994},
+  doi     = {10.1016/j.aeue.2019.152994}
 }
 
-@article{lijinyan2010shi,
-  title = {时间步进算法中阻抗矩阵的高效存储新方法},
-  author = {李四 and \textbf{张三}},
-  journal = {电波科学学报},
-  volume = {25},
-  number = {4},
-  pages = {624--631},
-  year = {2010}
+% 2. CMOS Transmission Gate 宏模型论文
+@article{Anghel2006Macromodel,
+  author  = {Anghel, Costin and Ghioldi, Alessandro and Ionescu, Adrian M.},
+  journal = {IEEE Transactions on Computer-Aided Design of Integrated Circuits and Systems},
+  title   = {A macromodel for a {CMOS} transmission gate},
+  year    = {2006},
+  volume  = {25},
+  number  = {10},
+  pages   = {2270--2276}
 }
 
-@article{lijinyan2013shi,
-  title = {时域磁场积分方程时间步进算法稳定性研究},
-  author = {李四 and \textbf{张三}},
-  journal = {物理学报},
-  volume = {62},
-  number = {9},
-  pages = {090206--1--090206--6},
-  year = {2013}
+% 3. 全差分折叠共源共栅运放设计指南
+@article{Fisher1987Design,
+  author  = {Fisher, P. D. and Koch, K. C.},
+  journal = {IEEE Journal of Solid-State Circuits},
+  title   = {Design procedures for a fully differential folded-cascode {CMOS} operational amplifier},
+  year    = {1987},
+  volume  = {22},
+  number  = {6},
+  pages   = {1144--1151}
 }
 
-@onlynote{zhangdianzikeji,
-  note = {\textbf{张三}，李四.时域磁场积分方程时间步进算法后时稳定性研究.电子科技大学学报[J]（已录用，待刊）}
+% 4. PGA855 数据手册 (通常作为 Manual 或 Misc)
+@manual{TI_PGA855,
+  title        = {PGA855: 8-GHz, High-Speed, Fully Differential Programmable Gain Amplifier},
+  author       = {{Texas Instruments}},
+  organization = {Texas Instruments},
+  year         = {2023},
+  note         = {Data Sheet, SBAS992}
 }
 
-@conference{li2012parameters,
-  title = {Parameters Discussion in Two-Level Plane Wave Time-Domain Algorithm},
-  author = {\textbf{Zhang,San}},
-  journal = {2012 IEEE International Workshop on Electromagnetics},
-  address = {Chengdu},
-  pages = {38--39},
-  year = {2012}
+% 5. 全差分运放设计 (复旦唐长文老师课件/报告)
+@misc{Tang2024FD_OPAMP,
+  author = {唐长文},
+  title  = {全差分运放设计},
+  year   = {2024},
+  institution = {复旦大学},
+  note   = {专用集成电路与系统国家重点实验室}
 }
 
-@conference{zhangsan2008,
-  title = {时域积分方程时间步进算法研究},
-  author = {\textbf{张三} and 李四},
-  journal = {电子科技大学电子科学技术研究院第四届学术交流会},
+% 6. CMOS 带隙基准源课程设计报告
+@techreport{ICDesign_BGR,
+  title  = {{CMOS} 带隙基准源的设计 ({IC} 课程设计报告)},
+  author = {eetop},
+  year   = {2026},
+  institution = {电子科技大学},
+  type   = {课程设计报告}
+}
+
+% 1. 冯玮的硕士论文 (关于高精度 SAR ADC 的 PGA 设计)
+@mastersthesis{Feng2021PGA,
+  author  = {冯玮},
+  title   = {一种应用于高精度 {SAR ADC} 的可编程增益放大器的研究与设计},
+  school  = {电子科技大学},
+  year    = {2021},
   address = {成都},
-  pages = {164--168},
-  year = {2008}
+  type    = {硕士论文}
 }
 
-@onlynote{zhangsan4,
-  note = {\textbf{张三}（4）.人工介质雷达罩技术研究.国防科技进步二等奖，2008 年}
+% 2. 单端转差分电路设计 (技术报告/讲义)
+@misc{S2D_Design,
+  author = {UESTC_IC_Group},
+  title  = {单端转差分电路拓扑与稳定性分析},
+  year   = {2026},
+  note   = {内部技术文档，涵盖了反馈型与正反馈补偿型 S2D 架构}
 }
 
-@onlynote{onlynoteexample,
-  note = "XXX，XXX，XXX，XXX，王升．XXX的陶瓷研究．四川省科技进步三等奖，2003年12月"
+% 3. 单端转差分进阶 (可能涉及具体电路参数设置)
+@misc{S2D_Design_Part2,
+  author = {UESTC_IC_Group},
+  title  = {单端转差分电路（二）：噪声与线性度优化},
+  year   = {2026},
+  note   = {关于全差分运放（FDA）在单端输入下的平衡度研究}
 }
 
+% 4. THD 测试方法 (仿真流程指导)
+@techreport{THD_Test_Method,
+  title  = {{THD} 仿真与测试评价方法标准},
+  author = {集成电路教研室},
+  year   = {2025},
+  institution = {电子科技大学},
+  type   = {实验指导手册},
+  note   = {重点描述了基于 FFT 窗口采样后的总谐波失真计算流程}
+}
+
+% 5. TI 数据手册 s2368 (通常对应具体的 ADC 或放大器)
+@manual{TI_s2368,
+  title        = {Implementation of a {SAR} {ADC} Drive Circuit for High-Precision Applications},
+  author       = {{Texas Instruments}},
+  organization = {Texas Instruments},
+  year         = {2022},
+  note         = {Application Report No. S2368}
+}
+
+% 6. TI 数据手册 s5973 (通常对应高精度基准或 PGA)
+@manual{TI_s5973,
+  title        = {Voltage Reference Design for 16-Bit and 18-Bit {SAR} {ADC} Systems},
+  author       = {{Texas Instruments}},
+  organization = {Texas Instruments},
+  year         = {2023},
+  note         = {Technical Brief No. S5973}
+}

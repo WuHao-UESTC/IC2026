@@ -14,18 +14,11 @@ $50\,\mathrm{fF}$桥接电容连接。低13位电容下极板在
 $V_{\mathrm{top}}=3.3\,\mathrm{V}$与$V_{\mathrm{bot}}=0\,\mathrm{V}$之间切换，
 MSB可在输入端与$V_{\mathrm{CM}}$之间切换。
 
-<<<<<<< HEAD
-\begin{figure}[h]
-	\includegraphics[width=0.8\linewidth]{block.system}
-	\caption{系统测试框图}
-	\label{fig:block_system}
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入SAR ADC核心前仿原理图或testbench}}
     \caption{SAR ADC核心动态性能验证testbench}
     \label{fig:sar_adc_dynamic_tb}
->>>>>>> origin/asd28
 \end{figure}
 
 \textbf{仿真输入：}输入端直接施加以$V_{\mathrm{CM}}$为偏置、幅度为
@@ -39,24 +32,6 @@ $V_{\mathrm{in,diff}}=V_{\mathrm{in+}}-V_{\mathrm{in-}}$，并同步观察比较
 \texttt{vcm\_sw}、CDAC各位开关控制信号、内部逐次逼近结果
 \texttt{data\_out<13:0>}，以及外部SPI接收数据\texttt{last\_rx<13:0>}。
 
-<<<<<<< HEAD
-\begin{figure}[h]
-	\includegraphics[width=0.8\linewidth]{tran_ac_27k_pga}
-	\caption{27 kHz输入下SAR ADC输入信号}
-	\label{fig:tran_ac_27k_pga}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.6\linewidth]{tran_ac_27k_compin}
-	\caption{27 kHz输入下SAR ADC动态转换波形}
-	\label{fig:tran_ac_27k_compin}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.8\linewidth]{tran_ac_27k_digit}
-	\caption{27 kHz输入下SAR ADC动态转换波形}
-	\label{fig:tran_ac_27k_digit}
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz输入下SAR ADC转换波形}}
@@ -76,7 +51,6 @@ $V_{\mathrm{in,diff}}=V_{\mathrm{in+}}-V_{\mathrm{in-}}$，并同步观察比较
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入预采样、逐位比较、数据打包与SPI更新时序图}}
     \caption{SAR ADC转换控制逻辑与SPI输出时序}
     \label{fig:sar_adc_dynamic_timing}
->>>>>>> origin/asd28
 \end{figure}
 
 \textbf{结果分析：}仿真结果表明，预采样阶段正负两侧CDAC上极板被接入
@@ -99,8 +73,6 @@ $V_{\mathrm{CM}}$，比较器输入端电压基本一致；MSB切换后，比较
 $50\,\mathrm{MHz}$。PGA增益设置为8倍，PGA输出直接作为SAR ADC输入端，即本节中的
 \texttt{vin}节点。SAR ADC内部CDAC、比较器和数字逻辑设置与上一节保持一致。
 
-<<<<<<< HEAD
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入TIA+PGA+SAR ADC系统动态仿真testbench}}
@@ -108,7 +80,6 @@ $50\,\mathrm{MHz}$。PGA增益设置为8倍，PGA输出直接作为SAR ADC输入
     \label{fig:system_dynamic_tb}
 \end{figure}
 
->>>>>>> origin/asd28
 \textbf{仿真输入：}在前端手动施加正弦电流激励，电流偏置为$50\,\mathrm{nA}$，
 正弦幅度为$0.1\,\mathrm{nA}$，频率分别取$27\,\mathrm{kHz}$和
 $100\,\mathrm{kHz}$。该电流经TIA转换并由PGA放大后进入SAR ADC。仿真中PGA输出电压
@@ -120,24 +91,6 @@ $100\,\mathrm{kHz}$。该电流经TIA转换并由PGA放大后进入SAR ADC。仿
 \texttt{vcm\_sw}与CDAC下极板开关信号，用于确认采样、比较和输出更新时序是否与
 SAR ADC单独验证时一致。
 
-<<<<<<< HEAD
-\begin{figure}[h]
-	\includegraphics[width=0.5\linewidth]{tran_ac_100k_pga}
-	\caption{100 kHz输入下SAR ADC输入信号}
-	\label{fig:tran_ac_100k_pga}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.5\linewidth]{tran_ac_100k_compin}    
-	\caption{100 kHz输入下SAR ADC动态转换波形}  
-	\label{fig:tran_ac_100k_compin}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.8\linewidth]{tran_ac_100k_digit}
-	\caption{100 kHz输入下SAR ADC动态转换波形}
-	\label{fig:tran_ac_100k_digit}
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz电流输入下PGA输出与ADC输出波形}}
@@ -150,7 +103,6 @@ SAR ADC单独验证时一致。
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz电流输入下PGA输出与ADC输出波形}}
     \caption{系统在$100\,\mathrm{kHz}$电流输入下的动态仿真波形}
     \label{fig:system_dynamic_wave_100k}
->>>>>>> origin/asd28
 \end{figure}
 
 \textbf{结果分析：}接入TIA与PGA后，PGA输出端能够形成随输入电流周期变化的正弦电压，
@@ -175,8 +127,6 @@ PD输出接入TIA输入端，后级依次连接PGA和SAR ADC。系统电源、SA
 设置以及SPI输出流程与前两节保持一致。本次仿真中PGA增益设置为32倍，用于将PD产生的
 小信号电流进一步放大到ADC可观测的输入范围。
 
-<<<<<<< HEAD
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入S5973 PD+TIA+PGA+SAR ADC混合仿真testbench}}
@@ -184,7 +134,6 @@ PD输出接入TIA输入端，后级依次连接PGA和SAR ADC。系统电源、SA
     \label{fig:pd_dynamic_tb}
 \end{figure}
 
->>>>>>> origin/asd28
 \textbf{仿真输入：}光输入端设置为$1\,\mathrm{nW}$偏置叠加$50\,\mathrm{pW}$正弦光功率。
 在仿真中通过$1\,\mathrm{nV}$直流偏置叠加$50\,\mathrm{pV}$正弦电压的方式控制光功率
 激励，输入频率分别取$27\,\mathrm{kHz}$和$100\,\mathrm{kHz}$。该光功率经PD转换为
@@ -196,27 +145,6 @@ $750\,\mathrm{mV}$。
 \texttt{data\_out<13:0>}和SPI接收数据\texttt{last\_rx<13:0>}。同时记录
 \texttt{vcm\_sw}与CDAC开关控制信号，用于确认采样、逐位比较和输出锁存时序。
 
-<<<<<<< HEAD
-\begin{figure}[h]
-	\includegraphics[width=0.5\linewidth]{tran_ac_pd_pga}
-	\caption{27 kHz光输入下PD系统输入信号}
-	\label{fig:tran_ac_pd_pga}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.5\linewidth]{tran_ac_pd_compin}
-	\caption{27 kHz光输入下PD系统动态仿真波形}  
-	\label{fig:tran_ac_pd_compin}
-\end{figure}
-
-\begin{figure}[h]
-	\includegraphics[width=0.5\linewidth]{tran_ac_pd_digit}
-	\caption{27 kHz光输入下PD系统动态仿真波形}
-	\label{fig:tran_ac_pd_digit}
-\end{figure}
-
-
-=======
 \begin{figure}[H]
     \centering
     \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz光输入下PD系统动态仿真波形}}
@@ -231,7 +159,6 @@ $750\,\mathrm{mV}$。
     \label{fig:pd_dynamic_wave_100k}
 \end{figure}
 
->>>>>>> origin/asd28
 \textbf{结果分析：}仿真结果显示，使用S5973光电二极管替代理想电流源后，PGA输出端仍能
 得到随光功率正弦变化的电压信号，输出幅值约为$750\,\mathrm{mV}$。SAR ADC输出码也随输入光信号周期性上升和下降。说明
 在光伏工作模式下，PD产生的光电流能够被TIA和PGA有效转换、放大，并被后级SAR ADC完成
