@@ -5,18 +5,126 @@
 
 \section{光电二极管的选型与参数设计}
 
+光电二极管是本项目光电ADC模拟前端的信号源，其模型精度会直接影响TIA输入电流范围、输入寄生电容、暗电流本底、噪声预算和系统带宽设计。相比普通PN结光电二极管，PIN光电二极管在P区与N区之间引入高阻本征层，使耗尽区显著加宽，具有低结电容、高响应速度和较高线性光电转换效率，更适合作为高速光电检测前端的输入器件。
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{pin_overview.png}
+    {\includegraphics[width=0.72\textwidth]{pin_overview.png}}
+    {\fbox{\parbox[c][0.30\textwidth][c]{0.72\textwidth}{\centering pin\_overview.png 待补充}}}
+    \caption{PIN光电二极管物理结构示意}
+    \label{fig:design_pin_overview}
+\end{figure}
+
+本设计参考滨松Hamamatsu S5973系列高速PIN光电二极管建立工业级宏模型。该器件的典型特性包括：光谱响应范围$320\sim1000\,\text{nm}$，峰值响应波长约$760\,\text{nm}$；峰值响应度约$0.52\,\text{A/W}$；在$3.3\,\text{V}$反偏下暗电流典型值约$1\,\text{pA}$、最大值约$0.1\,\text{nA}$；在$1\,\text{MHz}$、$3.3\,\text{V}$反偏下终端电容约$1.6\,\text{pF}$；典型截止频率可达GHz量级。其低暗电流、低电容和高带宽特性与本项目$0.1\,\text{nA}\sim1\,\mu\text{A}$输入光电流范围、$3.3\,\text{V}$前端供电和$700\,\text{kHz}$系统有效带宽目标相匹配。
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{s5973_params.png}
+    {\includegraphics[width=0.8\textwidth]{s5973_params.png}}
+    {\fbox{\parbox[c][0.32\textwidth][c]{0.8\textwidth}{\centering s5973\_params.png 待补充}}}
+    \caption{S5973系列PIN光电二极管关键参数}
+    \label{fig:design_s5973_params}
+\end{figure}
+
 \section{暗电流与光电流建模}
+
+PIN光电二极管的等效电路沿用光生电流源并联二极管支路的基本结构，同时补充串联电阻$R_s$、并联漏电阻$R_{sh}$、结电容$C_j$、反向击穿支路和噪声源，如图\ref{fig:design_pin_model}所示。模型端口电流可表示为
+\begin{equation}
+    I_j = I_D + I_{br} + I_{sh} + I_C - I_{ph}
+\end{equation}
+其中$I_D$为二极管本征暗电流，$I_{br}$为反向击穿电流，$I_{sh}$为并联漏电流，$I_C$为结电容电流，$I_{ph}$为光生电流。
+
+\begin{figure}[htbp]
+    \centering
+    \IfFileExists{pin_model.png}
+    {\includegraphics[width=0.82\textwidth]{pin_model.png}}
+    {\fbox{\parbox[c][0.32\textwidth][c]{0.82\textwidth}{\centering pin\_model.png 待补充}}}
+    \caption{PIN光电二极管等效电路模型}
+    \label{fig:design_pin_model}
+\end{figure}
+
+光生电流是光电转换的核心输出量。弱光和中等光强下，光生电流与入射光功率近似线性：
+\begin{equation}
+    I_{ph} = R_\lambda P_{in}
+\end{equation}
+为覆盖强光下的饱和效应，模型采用带饱和功率的形式：
+\begin{equation}
+    I_{ph} = \frac{R_\lambda(T)P_{in}}{1+\left|P_{in}/P_{sat}\right|}
+\end{equation}
+其中$R_\lambda(T)$为温度相关响应度，$P_{sat}$为饱和光功率。PIN结构中的宽耗尽区提高了光子吸收和载流子收集效率，使光生电流线性区更宽、渡越时间更短。
+
+暗电流方面，实际S5973系列器件的反向暗电流曲线在双对数坐标下呈现四段式特征，不能由单一理想二极管方程准确描述。因此本设计采用多物理机制解耦模型：
+\begin{equation}
+    I_{dark}=I_{gr}+I_{diff}+I_{gen}+I_{leak}
+\end{equation}
+四个分量分别对应低压SRH产生-复合电流、体扩散饱和电流、耗尽层展宽导致的产生电流，以及高反偏下的表面/封装欧姆漏电流。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.58\textwidth}
+        \centering
+        \IfFileExists{dark_current_fit.png}
+        {\includegraphics[width=\textwidth]{dark_current_fit.png}}
+        {\fbox{\parbox[c][0.30\textwidth][c]{0.92\textwidth}{\centering dark\_current\_fit.png 待补充}}}
+        \caption{模型拟合曲线}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \IfFileExists{dark_current_curve.png}
+        {\includegraphics[width=\textwidth]{dark_current_curve.png}}
+        {\fbox{\parbox[c][0.30\textwidth][c]{0.92\textwidth}{\centering dark\_current\_curve.png 待补充}}}
+        \caption{数据手册曲线}
+    \end{subfigure}
+    \caption{S5973暗电流拟合结果对比}
+    \label{fig:design_dark_current_fit}
+\end{figure}
+
+拟合结果如图\ref{fig:design_dark_current_fit}所示。模型能够复现$0.1\,\text{V}\sim0.2\,\text{V}$附近的SRH收敛趋势、$0.2\,\text{V}\sim0.6\,\text{V}$的扩散电流水平平台、$0.6\,\text{V}\sim10\,\text{V}$的耗尽层展宽爬坡，以及$10\,\text{V}$以上的欧姆漏电增大。该暗电流模型为后级TIA输入偏置、电流动态范围和温度角噪声评估提供了更可信的边界条件。
 
 \section{寄生电容建模}
 
+光电二极管终端电容是TIA稳定性和带宽设计中的关键参数。对于PIN结构，终端电容由内部结电容和封装寄生电容共同组成：
+\begin{equation}
+    C_t(V)=C_j(V)+C_{pkg}
+\end{equation}
+其中结电容采用偏压相关模型：
+\begin{equation}
+    C_j(V)=\frac{C_{j0}}{\left(1-\frac{V}{V_j}\right)^{m_{cap}}}
+\end{equation}
+$C_{j0}$为零偏结电容，$V_j$为内建电势，$m_{cap}$为电容衰减因子。由于PIN二极管耗尽区更宽，其$m_{cap}$通常小于普通PN结，表现为随反偏电压增大而缓慢下降的电容曲线。
+
+\begin{figure}[htbp]
+    \centering
+    \begin{subfigure}{0.58\textwidth}
+        \centering
+        \IfFileExists{cv_fit.png}
+        {\includegraphics[width=\textwidth]{cv_fit.png}}
+        {\fbox{\parbox[c][0.30\textwidth][c]{0.92\textwidth}{\centering cv\_fit.png 待补充}}}
+        \caption{模型拟合曲线}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}{0.32\textwidth}
+        \centering
+        \IfFileExists{cv.png}
+        {\includegraphics[width=\textwidth]{cv.png}}
+        {\fbox{\parbox[c][0.30\textwidth][c]{0.92\textwidth}{\centering cv.png 待补充}}}
+        \caption{数据手册曲线}
+    \end{subfigure}
+    \caption{S5973终端电容拟合结果对比}
+    \label{fig:design_cv_fit}
+\end{figure}
+
+如图\ref{fig:design_cv_fit}所示，最终模型采用$C_{pkg}=0.6\,\text{pF}$、$C_{j0}=1.5\,\text{pF}$、$V_j=0.7\,\text{V}$、$m_{cap}=0.22$进行拟合。在$3.3\,\text{V}$反偏下，终端电容计算值约为$1.6\,\text{pF}$，与器件典型值一致。该电容值将作为TIA输入端寄生电容$C_{in}$的重要组成部分，用于确定反馈补偿电容$C_f$和闭环稳定性裕量。
+
 \section{噪声建模}
 
+光电二极管本征噪声主要包括光生电流、暗电流和击穿电流引起的散粒噪声，以及串联/并联电阻产生的热噪声。其电流噪声谱密度可近似写为
+\begin{equation}
+    S_{i,int}(T) \approx 2q\left(|I_{ph}|+|I_{dark}|+|I_{br}|\right)
+    +\frac{4kT}{R_{sh}}+\frac{4kT}{R_s}
+\end{equation}
+其中散粒噪声随光电流和暗电流增大而增大，热噪声则随温度和寄生电阻变化。由于本系统采用高跨阻增益TIA作为第一级，后级电路噪声折算到输入端会被前级增益显著压低，因此光电二极管本征噪声和TIA输入级噪声共同构成系统等效输入噪声的主导项。
 
-
-
-
-
-
-
-
-
+在系统设计中，该模型带来三点约束：第一，暗电流最大值决定弱光输入下的直流偏置误差和最小可分辨电流；第二，终端电容决定TIA输入极点位置和反馈补偿需求；第三，温度相关噪声决定最坏工作角下的积分噪声上限。因此，后续TIA设计采用$R_f=100\,\text{k}\Omega$、$C_f=1\,\text{pF}$并为输入级分配较高跨导预算，以在满足$700\,\text{kHz}$系统带宽的同时抑制前端等效输入噪声。

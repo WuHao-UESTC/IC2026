@@ -1,5 +1,562 @@
 % ----------------------------------------
-% 逐次逼近型数模转换器控制逻辑（SAR Logic）
+% 逐次逼近型模数转换器控制逻辑（SAR Logic）
 % ----------------------------------------
-\chapter{电容数字模拟转换器（SAR Logic）}
+\chapter{逐次逼近控制逻辑（SAR Logic）}
 
+\section{全差分双极性SAR转换原理}
+
+\subsection{差分输入与输出编码目标}
+
+本设计面向14位全差分双极性SAR ADC，输入差分电压定义为：
+\begin{equation}
+    V_{\mathrm{in,diff}} = V_{\mathrm{inp}} - V_{\mathrm{inn}}.
+\end{equation}
+
+与单极性SAR ADC不同，本设计需要同时支持正向差分输入和负向差分输入。因此，数字输出采用offset binary编码方式，将输入范围$-V_{\max}$至$+V_{\max}$映射到14位无符号码字：
+\begin{equation}
+    -V_{\max} \rightarrow 14'h0000,\quad
+    0^- \rightarrow 14'h1FFF,\quad
+    0^+ \rightarrow 14'h2000,\quad
+    +V_{\max} \rightarrow 14'h3FFF.
+\end{equation}
+
+因此，SAR Logic内部不再直接把比较器每一位判决结果写入\texttt{dout[13:0]}，而是先通过预比较判断输入差分正负，再进行13位幅值搜索，最终根据符号和幅值生成14位输出码：
+\begin{equation}
+    D_{\mathrm{out}} =
+    \begin{cases}
+    14'h2000 + \texttt{mag\_code}, & V_{\mathrm{in,diff}} \ge 0,\\
+    14'h1FFF - \texttt{mag\_code}, & V_{\mathrm{in,diff}} < 0.
+    \end{cases}
+\end{equation}
+其中，\texttt{mag\_code[12:0]}为SAR逐次逼近得到的13位幅值码。
+
+\subsection{采样结构导致的比较器极性反转}
+
+本ADC中，输入信号并不是直接施加在比较器两个输入端，而是通过最高位采样电容的另一侧极板进行采样。在采样结束后，采样电容切换到共模电压$V_{\mathrm{CM}}$，比较器输入端电压由电荷重分配产生。
+
+由于这种采样结构，原始输入差分极性与保持后比较器输入端的电压极性相反。若比较器输出定义为：
+\begin{equation}
+    \texttt{comp}=0 \Rightarrow V_p > V_n,\qquad
+    \texttt{comp}=1 \Rightarrow V_n > V_p,
+\end{equation}
+则对于正向差分输入$V_{\mathrm{inp}}>V_{\mathrm{inn}}$，保持后比较器输入端表现为$V_p<V_n$，因此比较器输出为\texttt{comp=1}。同理，对于负向差分输入$V_{\mathrm{inp}}<V_{\mathrm{inn}}$，保持后比较器输入端表现为$V_p>V_n$，因此比较器输出为\texttt{comp=0}。
+
+所以，在本SAR Logic中，预比较得到的符号判断为：
+\begin{equation}
+    \texttt{search\_positive} = \texttt{comp\_latched}.
+\end{equation}
+即\texttt{comp\_latched=1}表示$V_{\mathrm{in,diff}}>0$，\texttt{comp\_latched=0}表示$V_{\mathrm{in,diff}}<0$。
+
+\subsection{正向与负向逐次逼近策略}
+
+由于输入具有正负两个方向，本设计采用两套对称的SAR搜索方式。对于正向输入，正式采样前CDAC低13位基准为：
+\begin{equation}
+    \texttt{pol[12:0]} = 13'h0000.
+\end{equation}
+正式保持结束后，首先将最高幅值位\texttt{pol[12]}置1，进行MSB trial。若当前bit已经试探置1，则比较器输出含义为：\texttt{comp\_latched=1}表示$V_n>V_p$、补偿量仍不足，当前bit保留为1；\texttt{comp\_latched=0}表示$V_p>V_n$、补偿量过大，当前bit回退为0。因此正向输入的保留条件为：
+\begin{equation}
+    \texttt{pos\_keep} = \texttt{comp\_latched}.
+\end{equation}
+
+对于负向输入，正式采样前CDAC低13位基准为：
+\begin{equation}
+    \texttt{pol[12:0]} = 13'h1FFF.
+\end{equation}
+正式保持结束后，首先将最高幅值位\texttt{pol[12]}清0，进行MSB trial。若当前bit已经试探清0，则\texttt{comp\_latched=0}表示$V_p>V_n$、仍未过冲，当前bit保持为0；\texttt{comp\_latched=1}表示$V_n>V_p$、已经过冲，当前bit恢复为1。因此负向输入的保留条件为：
+\begin{equation}
+    \texttt{neg\_keep} = \sim \texttt{comp\_latched}.
+\end{equation}
+
+正负向SAR搜索规则如表\ref{tab:bipolar_sar_rule}所示。
+\begin{table}[H]
+\centering
+\caption{正负向SAR逐位逼近规则}
+\label{tab:bipolar_sar_rule}
+\begin{tabular}{llll}
+\toprule
+输入方向 & 当前trial动作 & 比较器输出 & SAR动作 \\
+\midrule
+正向 & 当前bit置1 & \texttt{comp=1} & 未补够，当前bit保留1，下一位置1 \\
+正向 & 当前bit置1 & \texttt{comp=0} & 过冲，当前bit回退0，下一位置1 \\
+负向 & 当前bit清0 & \texttt{comp=0} & 未补够，当前bit保持0，下一位清0 \\
+负向 & 当前bit清0 & \texttt{comp=1} & 过冲，当前bit恢复1，下一位清0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{SAR核心状态机设计}
+
+\subsection{状态定义}
+
+加入双极性预比较后，SAR核心状态机由传统的采样、保持、比较、更新流程扩展为带预采样的结构。主状态机定义如表\ref{tab:bipolar_fsm_state}所示。
+\begin{table}[H]
+\centering
+\caption{双极性SAR核心FSM状态定义}
+\label{tab:bipolar_fsm_state}
+\begin{tabular}{lll}
+\toprule
+状态名 & 编码 & 功能说明 \\
+\midrule
+\texttt{ST\_IDLE} & \texttt{4'd0} & 空闲状态，等待\texttt{enable}有效 \\
+\texttt{ST\_PRE\_SAMPLE} & \texttt{4'd1} & 预采样状态，\texttt{vcm\_sw}打开，\texttt{pol}全0 \\
+\texttt{ST\_PRE\_TOP\_RELEASE} & \texttt{4'd2} & 预采样非交叠释放，\texttt{vcm\_sw}关闭但MSB采样电容仍接VIN \\
+\texttt{ST\_PRE\_HOLD} & \texttt{4'd3} & 预保持状态，MSB采样电容切至VCM，等待节点稳定 \\
+\texttt{ST\_PRE\_CMP} & \texttt{4'd4} & 预比较状态，判断输入差分正负 \\
+\texttt{ST\_SAMPLE} & \texttt{4'd5} & 正式采样状态，根据预比较结果设置正/负采样基准 \\
+\texttt{ST\_TOP\_RELEASE} & \texttt{4'd6} & 正式采样非交叠释放状态 \\
+\texttt{ST\_HOLD} & \texttt{4'd7} & 正式保持状态，并在结束时施加bit12 trial \\
+\texttt{ST\_SAR\_BIT} & \texttt{4'd8} & 逐位SAR状态，内部由\texttt{sar\_phase}控制比较和更新 \\
+\texttt{ST\_DONE} & \texttt{4'd9} & 转换完成，输出\texttt{done}并释放\texttt{busy} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+由于状态数量超过8个，状态寄存器必须使用4位宽：
+\begin{lstlisting}[style=verilogstyle]
+reg [3:0] state;
+\end{lstlisting}
+若仍使用3位状态寄存器，则\texttt{ST\_SAR\_BIT=4'd8}会被截断为\texttt{3'd0}，导致状态机错误跳回\texttt{ST\_IDLE}，引起\texttt{vcm\_sw}频繁翻转、CDAC控制毛刺和输出码异常。
+
+\subsection{状态转移流程}
+
+双极性SAR状态转移流程如图\ref{fig:bipolar_fsm_flow}所示。
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[
+    node distance=2.15cm,
+    state/.style={draw, rounded corners, minimum width=2.7cm, minimum height=0.82cm, align=center},
+    arrow/.style={->, thick}
+]
+\node[state] (idle) {\texttt{IDLE}};
+\node[state, right of=idle] (presample) {\texttt{PRE\_SAMPLE}};
+\node[state, right of=presample] (pretop) {\texttt{PRE\_TOP}};
+\node[state, right of=pretop] (prehold) {\texttt{PRE\_HOLD}};
+\node[state, below of=prehold] (precmp) {\texttt{PRE\_CMP}};
+\node[state, left of=precmp] (sample) {\texttt{SAMPLE}};
+\node[state, left of=sample] (top) {\texttt{TOP\_RELEASE}};
+\node[state, left of=top] (hold) {\texttt{HOLD}};
+\node[state, below of=top] (sar) {\texttt{SAR\_BIT}};
+\node[state, below of=sar] (done) {\texttt{DONE}};
+\draw[arrow] (idle) -- node[above]{\texttt{enable}} (presample);
+\draw[arrow] (presample) -- node[above]{预采样计满} (pretop);
+\draw[arrow] (pretop) -- node[above]{释放计满} (prehold);
+\draw[arrow] (prehold) -- node[right]{稳定计满} (precmp);
+\draw[arrow] (precmp) -- node[below]{符号锁存} (sample);
+\draw[arrow] (sample) -- node[below]{正式采样计满} (top);
+\draw[arrow] (top) -- node[below]{释放计满} (hold);
+\draw[arrow] (hold) -- node[left]{施加bit12 trial} (sar);
+\draw[arrow] (sar) -- node[right]{13位完成} (done);
+\draw[arrow] (done) to[bend left=35] node[left]{\texttt{!enable}} (idle);
+\draw[arrow] (done) to[bend right=35] node[right]{连续模式} (presample);
+\end{tikzpicture}
+\caption{双极性SAR状态机流程}
+\label{fig:bipolar_fsm_flow}
+\end{figure}
+
+\subsection{SPI接口配置时序}
+
+SPI配置接口用于在转换前写入工作模式、采样时间、建立时间、比较时间以及连续转换使能等控制位。其时序图适合放置在状态机说明之后、具体采样状态说明之前，因为该位置能够先交代数字接口如何装载寄存器，再说明寄存器参数如何影响后续SAR状态转移。SPI协议时序如图\ref{fig:sar_spi_timing}所示。
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.75cm,y=0.55cm,>=Latex]
+    \draw[->] (0,0) -- (14,0) node[right] {$t$};
+    \foreach \y/\name in {4/\texttt{CS\_N},3/\texttt{SCLK},2/\texttt{MOSI},1/\texttt{MISO},0/\texttt{LOAD}} {
+        \node[left] at (0,\y) {\name};
+    }
+    \draw[thick] (0,4.35) -- (1,4.35) -- (1,4.0) -- (12,4.0) -- (12,4.35) -- (13.5,4.35);
+    \draw[thick] (0,3.0) -- (1,3.0);
+    \foreach \x in {1.5,2.5,...,11.5} {
+        \draw[thick] (\x,3.0) -- ++(0.25,0.35) -- ++(0.5,0) -- ++(0.25,-0.35);
+    }
+    \draw[thick] (12,3.0) -- (13.5,3.0);
+    \draw[thick] (1,2.0) -- (2,2.3) -- (3,1.7) -- (4,2.3) -- (5,1.7) -- (6,2.3) -- (7,1.7) -- (8,2.3) -- (9,1.7) -- (10,2.3) -- (11,1.7) -- (12,2.0);
+    \node[above] at (2.5,2.45) {ADDR};
+    \node[above] at (6.5,2.45) {DATA[15:8]};
+    \node[above] at (10,2.45) {DATA[7:0]};
+    \draw[thick,dashed] (1,1.0) -- (12,1.0);
+    \draw[thick] (12.2,0.0) -- (12.6,0.35) -- (13.0,0.35) -- (13.4,0.0);
+    \draw[<->] (1,4.75) -- node[above]{16 bit frame} (12,4.75);
+\end{tikzpicture}
+\caption{SPI寄存器配置协议时序图}
+\label{fig:sar_spi_timing}
+\end{figure}
+
+\subsection{预采样状态}
+
+在\texttt{ST\_PRE\_SAMPLE}状态中，SAR Logic执行一次只用于符号判断的预采样。此时\texttt{vcm\_sw}打开，最高位采样电容连接到VIN，低13位CDAC控制字全部置0：
+\begin{equation}
+    \texttt{vcm\_sw}=1,\qquad
+    \texttt{cmp\_en}=0,\qquad
+    \texttt{pol[12:0]}=13'h0000.
+\end{equation}
+该状态的作用是使输入差分电压通过采样电容写入比较器输入相关节点，为后续预比较建立正确的电荷状态。由于这只是符号判断阶段，不进行任何SAR bit trial。
+
+\subsection{预采样非交叠释放状态}
+
+在\texttt{ST\_PRE\_TOP\_RELEASE}状态中，逻辑首先关闭\texttt{vcm\_sw}，但最高位采样电容仍保持连接VIN：
+\begin{equation}
+    \texttt{vcm\_sw}=0,\qquad
+    \texttt{cap[13]} \rightarrow V_{\mathrm{IN}}.
+\end{equation}
+该状态用于实现非交叠时序，使共模开关先完全关断，再进行后续采样电容切换。这样可以避免由于\texttt{vcm\_sw}关断较慢，使采样电荷通过共模通路泄放。
+
+\subsection{预保持状态}
+
+在\texttt{ST\_PRE\_HOLD}状态中，最高位采样电容由VIN切换至VCM：
+\begin{equation}
+    \texttt{cap[13]} \rightarrow V_{\mathrm{CM}}.
+\end{equation}
+此时\texttt{vcm\_sw}保持关闭，比较器输入端形成由预采样电荷重分配得到的保持电压。逻辑在该状态等待\texttt{SETTLE\_TIME+1}个时钟周期，使比较器输入节点和CDAC网络完成建立。
+
+\subsection{预比较状态}
+
+在\texttt{ST\_PRE\_CMP}状态中，逻辑拉高\texttt{cmp\_en}使能同步比较器，并在时钟下降沿锁存比较器输出。由于比较器为同步比较器，其输出必须在下降沿采样。为了避免比较器关闭后无效输出覆盖有效结果，\texttt{comp\_latched}只在\texttt{cmp\_en=1}时更新：
+\begin{lstlisting}[style=verilogstyle]
+always @(negedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        comp_latched <= 1'b0;
+    end else if (cmp_en) begin
+        comp_latched <= comp;
+    end
+end
+\end{lstlisting}
+
+预比较完成后，根据\texttt{comp\_latched}决定正式采样所使用的CDAC基准：
+\begin{lstlisting}[style=verilogstyle]
+search_positive <= comp_latched;
+
+if (comp_latched) begin
+    pol <= {1'b0, 13'h0000};  // positive formal sampling baseline
+end else begin
+    pol <= {1'b0, 13'h1FFF};  // negative formal sampling baseline
+end
+\end{lstlisting}
+
+\subsection{正式采样与保持状态}
+
+预比较完成后，ADC进入正式采样流程。该流程包含正式采样、非交叠释放和正式保持三个状态。在\texttt{ST\_SAMPLE}状态中，\texttt{vcm\_sw}打开，最高位采样电容连接VIN。此时低13位\texttt{pol}已经由预比较结果设定：
+\begin{equation}
+    \text{正向输入：}\quad \texttt{pol[12:0]}=13'h0000,
+\end{equation}
+\begin{equation}
+    \text{负向输入：}\quad \texttt{pol[12:0]}=13'h1FFF.
+\end{equation}
+
+采样部分时序图适合放置在此处，因为该图直接对应正式采样、非交叠释放、保持以及第12位trial施加的先后关系，如图\ref{fig:sar_sample_timing}所示。
+\begin{figure}[H]
+\centering
+\begin{tikzpicture}[x=0.72cm,y=0.58cm,>=Latex]
+    \draw[->] (0,0) -- (15,0) node[right] {$t$};
+    \foreach \y/\name in {5/\texttt{clk},4/\texttt{vcm\_sw},3/\texttt{cap13},2/\texttt{pol[12]},1/\texttt{cmp\_en},0/\texttt{state}} {
+        \node[left] at (0,\y) {\name};
+    }
+    \foreach \x in {0.5,1.5,...,13.5} {
+        \draw[thick] (\x,5.0) -- ++(0.25,0.35) -- ++(0.5,0) -- ++(0.25,-0.35);
+    }
+    \draw[thick] (0,4.35) -- (5,4.35) -- (5,4.0) -- (14,4.0);
+    \draw[thick] (0,3.25) -- (5,3.25) -- (5,2.85) -- (14,2.85);
+    \node[above] at (2.5,3.3) {VIN};
+    \node[below] at (9.5,2.85) {VCM};
+    \draw[thick] (0,2.0) -- (8,2.0) -- (8,2.35) -- (14,2.35);
+    \node[above] at (9.4,2.35) {bit12 trial};
+    \draw[thick] (0,1.0) -- (9.5,1.0) -- (9.5,1.35) -- (11,1.35) -- (11,1.0) -- (14,1.0);
+    \draw (0,-0.35) rectangle (5,0.35);
+    \draw (5,-0.35) rectangle (8,0.35);
+    \draw (8,-0.35) rectangle (11,0.35);
+    \draw (11,-0.35) rectangle (14,0.35);
+    \node at (2.5,0) {\texttt{SAMPLE}};
+    \node at (6.5,0) {\texttt{TOP\_RELEASE}};
+    \node at (9.5,0) {\texttt{HOLD}};
+    \node at (12.5,0) {\texttt{SAR\_BIT}};
+    \draw[<->] (0,4.75) -- node[above]{正式采样} (5,4.75);
+    \draw[<->] (5,4.75) -- node[above]{非交叠} (8,4.75);
+    \draw[<->] (8,4.75) -- node[above]{建立/比较} (11,4.75);
+\end{tikzpicture}
+\caption{正式采样、保持与MSB trial时序图}
+\label{fig:sar_sample_timing}
+\end{figure}
+
+需要强调的是，第12位trial不能在\texttt{ST\_SAMPLE}之前或\texttt{ST\_SAMPLE}中提前施加，否则MSB trial会被采样过程吸收，导致第一位比较异常。因此，第12位trial在\texttt{ST\_HOLD}结束后才施加：
+\begin{lstlisting}[style=verilogstyle]
+if (search_positive) begin
+    pol[12] <= 1'b1;  // positive: trial set MSB
+end else begin
+    pol[12] <= 1'b0;  // negative: trial clear MSB
+end
+\end{lstlisting}
+这样可以保证bit12是正式保持后的第一次CDAC变化。
+
+\subsection{逐位SAR子状态}
+
+为了减少主状态数量，13位幅值搜索统一放在\texttt{ST\_SAR\_BIT}状态中，并由子状态\texttt{sar\_phase}控制。每一位转换包含三个阶段，如表\ref{tab:sar_phase}所示。
+\begin{table}[H]
+\centering
+\caption{SAR逐位子状态说明}
+\label{tab:sar_phase}
+\begin{tabular}{lll}
+\toprule
+子状态 & 编码 & 功能说明 \\
+\midrule
+\texttt{PH\_SETTLE} & \texttt{2'd0} & 等待CDAC切换后模拟节点稳定 \\
+\texttt{PH\_CMP} & \texttt{2'd1} & 拉高\texttt{cmp\_en}，等待同步比较器输出 \\
+\texttt{PH\_UPDATE} & \texttt{2'd2} & 根据\texttt{comp\_latched}更新\texttt{pol}和\texttt{mag\_code} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+在\texttt{PH\_UPDATE}阶段，正向输入和负向输入采用不同的更新规则：
+\begin{lstlisting}[style=verilogstyle]
+assign pos_keep = comp_latched;
+assign neg_keep = ~comp_latched;
+assign cur_keep = search_positive ? pos_keep : neg_keep;
+\end{lstlisting}
+
+对于正向输入，当前bit的trial值为1：
+\begin{lstlisting}[style=verilogstyle]
+if (search_positive) begin
+    if (pos_keep) begin
+        pol[bit_idx] <= 1'b1;
+    end else begin
+        pol[bit_idx] <= 1'b0;
+    end
+
+    if (bit_idx != 4'd0) begin
+        pol[bit_idx-1] <= 1'b1;
+    end
+end
+\end{lstlisting}
+
+对于负向输入，当前bit的trial值为0：
+\begin{lstlisting}[style=verilogstyle]
+else begin
+    if (neg_keep) begin
+        pol[bit_idx] <= 1'b0;
+    end else begin
+        pol[bit_idx] <= 1'b1;
+    end
+
+    if (bit_idx != 4'd0) begin
+        pol[bit_idx-1] <= 1'b0;
+    end
+end
+\end{lstlisting}
+
+\texttt{mag\_code}则根据当前bit是否保留更新：
+\begin{lstlisting}[style=verilogstyle]
+assign bit_mask = (13'd1 << bit_idx);
+
+assign mag_next = cur_keep ?
+                  (mag_code |  bit_mask) :
+                  (mag_code & ~bit_mask);
+\end{lstlisting}
+
+当\texttt{bit\_idx=0}时，13位幅值搜索完成，逻辑生成最终14位offset binary结果：
+\begin{lstlisting}[style=verilogstyle]
+if (search_positive) begin
+    dout <= 14'h2000 + {1'b0, mag_next};
+end else begin
+    dout <= 14'h1FFF - {1'b0, mag_next};
+end
+\end{lstlisting}
+
+\section{CDAC开关编码设计}
+
+\subsection{二位选择编码}
+
+每个CDAC单元由2 bit选择编码控制其连接目标，如表\ref{tab:cdac_sel_bp}所示。
+\begin{table}[H]
+\centering
+\caption{CDAC二位选择编码}
+\label{tab:cdac_sel_bp}
+\begin{tabular}{lll}
+\toprule
+选择编码 & Verilog宏 & 物理连接含义 \\
+\midrule
+\texttt{2'b00} & \texttt{SEL\_VBOT} & 下参考端或低参考端 \\
+\texttt{2'b01} & \texttt{SEL\_VTOP} & 上参考端或高参考端 \\
+\texttt{2'b10} & \texttt{SEL\_VCM} & 共模电压端 \\
+\texttt{2'b11} & \texttt{SEL\_VIN} & 输入采样端 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\texttt{cap\_p\_sel}和\texttt{cap\_n\_sel}均为28位，对应14个电容单元，每个单元占用2位：
+\begin{equation}
+    \texttt{cap\_p\_sel[2i+1:2i]},\quad
+    \texttt{cap\_n\_sel[2i+1:2i]},\quad i=0,1,\cdots,13.
+\end{equation}
+
+\subsection{低13位差分互补切换}
+
+低13位电容，即$i=0\sim12$，由\texttt{pol[i]}控制。其连接关系为：
+\begin{equation}
+\begin{cases}
+\texttt{pol[i]}=1: & C_{p,i}\rightarrow V_{\mathrm{TOP}},\quad C_{n,i}\rightarrow V_{\mathrm{BOT}},\\
+\texttt{pol[i]}=0: & C_{p,i}\rightarrow V_{\mathrm{BOT}},\quad C_{n,i}\rightarrow V_{\mathrm{TOP}}.
+\end{cases}
+\end{equation}
+
+Verilog编码如下：
+\begin{lstlisting}[style=verilogstyle]
+for (i = 0; i < 13; i = i + 1) begin
+    pol_eff = CDAC_REVERSE ? ~pol[i] : pol[i];
+
+    cap_p_sel[2*i +: 2] = pol_eff ? SEL_VTOP : SEL_VBOT;
+    cap_n_sel[2*i +: 2] = pol_eff ? SEL_VBOT : SEL_VTOP;
+end
+\end{lstlisting}
+其中，\texttt{CDAC\_REVERSE}用于修正实际CDAC方向与数字逻辑定义不一致的情况。如果正负输入均出现逼近方向相反，可通过翻转该参数调整物理开关方向。
+
+\subsection{最高位采样/共模单元控制}
+
+最高编号电容单元$i=13$不参与13位幅值搜索，而作为采样和共模切换单元。预采样、预释放、正式采样和正式释放阶段接VIN；预保持、预比较、正式保持、SAR逐位逼近和完成阶段接VCM：
+\begin{equation}
+\begin{cases}
+\texttt{ST\_PRE\_SAMPLE},\texttt{ST\_PRE\_TOP\_RELEASE},
+\texttt{ST\_SAMPLE},\texttt{ST\_TOP\_RELEASE}: 
+& C_{13}\rightarrow V_{\mathrm{IN}},\\
+\text{其他状态}: 
+& C_{13}\rightarrow V_{\mathrm{CM}}.
+\end{cases}
+\end{equation}
+
+对应Verilog逻辑为：
+\begin{lstlisting}[style=verilogstyle]
+if ((state == ST_PRE_SAMPLE)      ||
+    (state == ST_PRE_TOP_RELEASE) ||
+    (state == ST_SAMPLE)          ||
+    (state == ST_TOP_RELEASE)) begin
+
+    cap_p_sel[27:26] = SEL_VIN;
+    cap_n_sel[27:26] = SEL_VIN;
+
+end else begin
+
+    cap_p_sel[27:26] = SEL_VCM;
+    cap_n_sel[27:26] = SEL_VCM;
+
+end
+\end{lstlisting}
+
+\subsection{One Hot开关译码}
+
+\texttt{cdac\_switch\_encoder\_bp}将2 bit选择编码转换为One Hot开关控制信号：
+\begin{equation}
+    \texttt{SEL\_VBOT} \rightarrow \texttt{sw\_*\_vbot[i]}=1,\quad
+    \texttt{SEL\_VTOP} \rightarrow \texttt{sw\_*\_vtop[i]}=1,
+\end{equation}
+\begin{equation}
+    \texttt{SEL\_VCM} \rightarrow \texttt{sw\_*\_vcm[i]}=1,\quad
+    \texttt{SEL\_VIN} \rightarrow \texttt{sw\_*\_vin[i]}=1.
+\end{equation}
+其中\texttt{*}表示\texttt{p}端或\texttt{n}端。译码器在组合逻辑开始时清零所有输出，再根据每个电容单元的选择编码置位对应开关，从而保证每个电容单元在理想数字逻辑中仅连接一个目标电压端。
+
+\section{转换时间与采样率估算}
+
+\subsection{单次转换周期}
+
+一次完整双极性SAR转换包含预比较流程、正式采样流程和13位幅值搜索流程。预比较阶段包含预采样、预释放、预保持和预比较；正式采样阶段包含正式采样、正式释放和正式保持；每一位SAR搜索包含建立、比较和更新。
+
+令$N_s=\texttt{SAMPLE\_TIME}+1$，$N_t=\texttt{TOP\_RELEASE\_TIME}+1$，$N_{\mathrm{set}}=\texttt{SETTLE\_TIME}+1$，$N_c=\texttt{COMP\_TIME}+1$。若幅值搜索位数为13，则总周期数近似为：
+\begin{equation}
+\begin{aligned}
+N_{\mathrm{total}}
+&= (N_s+N_t+N_{\mathrm{set}}+N_c)
+ +(N_s+N_t+N_{\mathrm{set}})\\
+&\quad +13\left(N_{\mathrm{set}}+N_c+1\right)+1.
+\end{aligned}
+\end{equation}
+其中最后的$+1$对应\texttt{ST\_DONE}状态。
+
+\subsection{默认参数下的采样率}
+
+若默认参数取：
+\begin{equation}
+    \texttt{SAMPLE\_TIME}=4,\quad \texttt{SETTLE\_TIME}=2,
+\end{equation}
+\begin{equation}
+    \texttt{TOP\_RELEASE\_TIME}=1,\quad \texttt{COMP\_TIME}=1,
+\end{equation}
+且系统时钟为$f_{\mathrm{clk}}=50\,\mathrm{MHz}$，则预比较阶段周期数为：
+\begin{equation}
+    N_{\mathrm{pre}} = 5 + 2 + 3 + 2 = 12.
+\end{equation}
+正式采样阶段周期数为：
+\begin{equation}
+    N_{\mathrm{sample}} = 5 + 2 + 3 = 10.
+\end{equation}
+每一位SAR搜索周期数为：
+\begin{equation}
+    N_{\mathrm{bit}} = 3 + 2 + 1 = 6.
+\end{equation}
+13位幅值搜索周期数为：
+\begin{equation}
+    N_{\mathrm{SAR}} = 13 \times 6 = 78.
+\end{equation}
+因此单次转换总周期数为：
+\begin{equation}
+    N_{\mathrm{total}} = 12 + 10 + 78 + 1 = 101.
+\end{equation}
+对应转换时间为：
+\begin{equation}
+    T_{\mathrm{conv}} =
+    \frac{101}{50\,\mathrm{MHz}}
+    = 2.02\,\mu s.
+\end{equation}
+理论最大采样率为：
+\begin{equation}
+    f_{\mathrm{s,max}} =
+    \frac{50\,\mathrm{MHz}}{101}
+    \approx 495\,kS/s.
+\end{equation}
+相比不带预比较的单向SAR逻辑，完整预采样式预比较会增加约12个时钟周期，但能够显著提高双极性输入下的符号判断可靠性，避免负向输入被错误输出为\texttt{14'h2000}，或正向输入被错误输出为\texttt{14'h1FFF}。
+
+\section{关键Verilog片段}
+
+\subsection{比较器下降沿锁存}
+
+\begin{lstlisting}[style=verilogstyle]
+always @(negedge clk or negedge rst_n) begin
+    if (!rst_n) begin
+        comp_latched <= 1'b0;
+    end else if (cmp_en) begin
+        comp_latched <= comp;
+    end
+end
+\end{lstlisting}
+该写法满足同步比较器下降沿采样的要求，同时通过\texttt{cmp\_en}门控避免比较器关闭后的无效输出覆盖有效比较结果。
+
+\subsection{正负向keep条件}
+
+\begin{lstlisting}[style=verilogstyle]
+assign pos_keep = comp_latched;
+assign neg_keep = ~comp_latched;
+
+assign cur_keep = search_positive ? pos_keep : neg_keep;
+\end{lstlisting}
+该逻辑对应：正向输入时\texttt{comp=1}保留当前置1 trial；负向输入时\texttt{comp=0}保留当前清0 trial。
+
+\subsection{最终offset binary输出}
+
+\begin{lstlisting}[style=verilogstyle]
+if (search_positive) begin
+    dout <= 14'h2000 + {1'b0, mag_next};
+end else begin
+    dout <= 14'h1FFF - {1'b0, mag_next};
+end
+\end{lstlisting}
+该输出方式使双极性输入范围被映射到14位无符号码空间。
+
+\section{设计小结}
+
+改进后的SAR Logic具有以下特点：
+\begin{enumerate}[label=(\arabic*)]
+    \item \textbf{支持双极性输入：}通过预比较判断输入差分正负，并输出offset binary码；
+    \item \textbf{预比较更可靠：}采用\texttt{PRE\_SAMPLE--PRE\_TOP\_RELEASE--PRE\_HOLD--PRE\_CMP}四阶段结构，使预比较也遵循采样电容电荷重分配过程；
+    \item \textbf{考虑极性反转：}由于VIN接在MSB采样电容另一侧极板，正输入保持后表现为比较器端\texttt{vp<vn}，因此\texttt{comp=1}对应正向输入；
+    \item \textbf{正负向搜索分离：}正向从全0基准开始逐位置1，负向从全1基准开始逐位清0；
+    \item \textbf{MSB trial时序正确：}第12位trial不在采样阶段提前施加，而是在正式\texttt{HOLD}结束后施加；
+    \item \textbf{同步比较器友好：}比较器输出在下降沿锁存，并通过\texttt{cmp\_en}门控避免无效输出覆盖；
+    \item \textbf{状态位宽安全：}主状态机扩展到10个状态，必须使用4位状态寄存器；
+    \item \textbf{AMS仿真更稳定：}通过非交叠释放状态减少\texttt{vcm\_sw}慢关断导致的采样电荷泄放问题。
+\end{enumerate}
