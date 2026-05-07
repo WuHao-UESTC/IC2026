@@ -12,6 +12,33 @@
 
 % require all the usepackages here
 \usepackage{algorithm2e}
+\usepackage{tikz}
+\usetikzlibrary{positioning,arrows.meta}
+\lstdefinelanguage{Verilog}{
+    morekeywords={module,endmodule,input,output,inout,wire,reg,logic,assign,always,begin,end,if,else,for,case,endcase,parameter,localparam,posedge,negedge},
+    sensitive=true,
+    morecomment=[l]{//},
+    morecomment=[s]{/*}{*/},
+    morestring=[b]"
+}
+\lstdefinestyle{verilogstyle}{
+    language=Verilog,
+    basicstyle=\small\ttfamily,
+    numbers=left,
+    numberstyle=\tiny\color{gray},
+    stepnumber=1,
+    numbersep=8pt,
+    frame=single,
+    framesep=5pt,
+    rulecolor=\color{black},
+    linewidth=\textwidth,
+    breaklines=true,
+    captionpos=t,
+    aboveskip=9pt,
+    belowskip=9pt,
+    xleftmargin=24pt,
+    xrightmargin=0pt
+}
 
 \begin{document}
 

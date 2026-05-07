@@ -1,0 +1,19 @@
+,Parameter,Nominal,,,,,,Asym_FS,Asym_SF,Cold,Hot,BC,WorstCase,WCLowtemp,MaxPower,MaxLeakage
+,Vpower,3.3,,,,,,3.3,3.3,3.3,3.3,3.6,3.3,3,3.3,3.6
+,spectre.scs,tt,,,,,,fs,sf,tt,tt,ff,ss,ss,ff,ff
+,temperature,27,,,,,,25,25,-40,125,-40,-40,-40,125,125
+
+Test,Output,Nominal,Spec,Weight,Pass/Fail,Min,Max,Asym_FS,Asym_SF,Cold,Hot,BC,WorstCase,WCLowtemp,MaxPower,MaxLeakage
+ADC3v_tb_L2_ADC_SaSwitch_1,ENOB,17.8,> 16,,pass,16.77,19,17.77,17.77,18.16,16.78,19,18.05,17.43,16.77,17.23
+ADC3v_tb_L2_ADC_SaSwitch_1,SNDR,108.9,> 98.08,,pass,102.7,116.2,108.8,108.8,111.1,102.8,116.2,110.4,106.7,102.7,105.5
+ADC3v_tb_L2_ADC_SaSwitch_1,SNR,117.1,> 98.08,,pass,116.4,133.1,116.4,116.4,132.1,119.8,132.6,133.1,132.9,120.3,119.9
+ADC3v_tb_L2_ADC_SaSwitch_1,Ron_min,18.67,< 25,,pass,14.15,24.79,18.56,18.56,15.13,24.79,14.15,16.01,16.54,23.08,22.42
+ADC3v_tb_L2_ADC_SaSwitch_1,Current,2.647e-6,< 5u,,pass,2.344e-6,3.182e-6,2.648e-6,2.648e-6,2.754e-6,2.615e-6,3.182e-6,2.674e-6,2.344e-6,2.679e-6,2.996e-6
+ADC3v_tb_L2_ADC_SaSwitch_1,Power,8.734e-6,< 16.5u,,pass,7.032e-6,11.46e-6,8.739e-6,8.739e-6,9.087e-6,8.628e-6,11.46e-6,8.825e-6,7.032e-6,8.839e-6,10.79e-6
+ADC3v_tb_L2_ADC_SaSwitch_1,BS_Max,3.237,> 3.0,,near,2.961,3.513,3.237,3.237,3.241,3.239,3.513,3.256,2.961,3.218,3.511
+ADC3v_tb_L2_ADC_SaSwitch_1,THD_dB,-109.6,< -100,,pass,-116.3,-102.8,-109.6,-109.6,-111.1,-102.9,-116.3,-110.5,-106.7,-102.8,-105.7
+ADC3v_tb_L2_ADC_SaSwitch_1,SigFreq,144.5e3,,,,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3,144.5e3
+ADC3v_tb_L2_ADC_SaSwitch_1,Gate,,,,,,,,,,,,,,,
+ADC3v_tb_L2_ADC_SaSwitch_1,Vin,,,,,,,,,,,,,,,
+ADC3v_tb_L2_ADC_SaSwitch_1,VSamp,,,,,,,,,,,,,,,
+
