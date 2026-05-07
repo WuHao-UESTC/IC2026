@@ -3,14 +3,115 @@
 % ----------------------------------------
 \chapter{可编程增益放大器（PGA）}
 
+在 14-bit 高精度数据采集系统中，可编程增益放大器（Programmable Gain Amplifier, PGA）位于模拟前端（AFE）的末端，其核心任务是将前级变化范围极大的微弱信号进行精准的幅度归一化，使其满量程匹配后级 SAR ADC 的输入动态范围（$3\,\mathrm{V_{pp}}$）。本章将详细论述基于双 8-bit R-2R 梯形电阻网络的全差分 PGA 设计。
+
 \section{增益调节原理}
+
+本设计采用全差分闭环负反馈拓扑架构。传统 PGA 通常采用电阻串反馈，但要实现大范围、高精度的增益步进，传统结构的开关寄生电阻和版图面积会急剧膨胀。为此，本设计在输入端（$R_g$）与反馈端（$R_f$）分别独立放置了一个 8-bit 的 R-2R 梯形电阻网络（R-2R Ladder）。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sch.pga.png}
+    \caption{基于双 8-bit R-2R 网络的 PGA 增益调节原理图}
+    \label{fig:sch.pga}
+\end{figure}
+
+对于标准 8-bit R-2R 电阻网络，当其作为电流输出型数字电位器使用时，其等效跨阻与输入的 8-bit 数字控制字 $D$（取值范围 $1 \sim 255$）成反比。
+若设基准电阻为 $R$，对于输入端 R-2R 网络，其受控等效输入电阻 $R_g(D_g)$ 为：
+$$ R_g(D_g) = \frac{2^8 \cdot R}{D_g} = \frac{256 R}{D_g} $$
+
+同理，对于反馈端 R-2R 网络，其受控等效反馈电阻 $R_f(D_f)$ 为：
+$$ R_f(D_f) = \frac{2^8 \cdot R}{D_f} = \frac{256  R}{D_f} $$
+
+在全差分反相放大结构中，闭环电压增益 $A_v$ 由反馈系数决定：
+$$ A_v = \frac{V_{\mathrm{out\pm}}}{V_{\mathrm{in\pm}}} = \frac{R_f(D_f)}{R_g(D_g)} $$
+
+将等效电阻公式代入，可得最终的增益控制方程：
+$$ A_v = \frac{\frac{256 R}{D_f}}{\frac{256 R}{D_g}} = \frac{D_g}{D_f} $$
+
+这一数学架构极其优美：通过分别配置两个 8-bit 寄存器的值 $D_g$ 和 $D_f$，系统闭环增益可以实现从最小 $1/255$（当 $D_g=1, D_f=255$ 时）到最大 $255$（当 $D_g=255, D_f=1$ 时）的超宽范围覆盖，且能实现极其精细的分数阶步进。
 
 \section{增益与电阻网络设计}
 
+在 $180\,\mathrm{nm}$ 工艺下，14-bit 的精度要求 PGA 的增益误差必须严格控制在 $\le 0.01\%$ 以内。这给 R-2R 网络的设计带来了极大的版图匹配与开关非线性挑战。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\textwidth]{r-2r.png}
+    \caption{R-2R 梯形网络与开关阵列协同设计图}
+    \label{fig:r-2r}
+\end{figure}
+
+\textbf{1. 导通电阻（$R_{\mathrm{on}}$）非线性抑制：} 
+R-2R 网络中，控制支路通断的 CMOS 传输门（Transmission Gate）存在导通电阻 $R_{\mathrm{on}}$。若 $R_{\mathrm{on}}$ 随电压波动，将引入严重的谐波失真（THD）。
+设计中，必须保证 R-2R 梯形网络每一级支路的总电阻保持严格的二进制比例关系。因此，所有开关管的尺寸（$W/L$）必须按照 $1:2:4:\dots:128$ 的比例进行\textbf{二进制加权（Binary-Weighted Sizing）}，使得等效 $R_{\mathrm{on}}$ 也呈二进制递减，并将其等效值吸收到对应的 $2R$ 电阻设计中，从而在根源上消除增益误差。
+
+\textbf{2. 无源器件匹配：}
+采用高精度的多晶硅（Poly）电阻实现 $R$ 与 $2R$。为了抵抗芯片表面的应力梯度与热梯度扩散，版图设计中强制要求将两组 8-bit R-2R 网络采用\textbf{共源共栅交叉匹配（Common-Centroid）}布局，并在四周添加充裕的 Dummy 电阻。前文仿真结果显示，在极端的全增益域扫描下，最大误差依然 $<0.01\%$，证明该电阻网络设计逻辑是完全自洽且成功的。
+
 \section{后级负载驱动能力考虑}
+
+PGA 的输出端直接驱动 SAR ADC 的电容数模转换器（CDAC）阵列，其等效单端负载高达 $40\,\mathrm{pF}$。这对 PGA 的输出充放电能力与大信号建立提出了严酷的考验。
+
 \subsection{输出建立时间}
+
+在 $1\,\mathrm{MS/s}$ 采样率下，ADC 分配给前端的追踪（Tracking）窗口通常不足 $1\,\mathrm{\mu s}$。PGA 的输出建立过程由\textbf{压摆阶段（Slewing）}和\textbf{线性建立阶段（Linear Settling）}两部分组成。
+
+大信号跳变时，运放首先进入压摆受限状态，其压摆时间 $t_{\mathrm{slew}}$ 为：
+$$ t_{\mathrm{slew}} = \frac{\Delta V_{\mathrm{out}}}{\mathrm{SR}} $$
+本设计中 PGA 压摆率 $\mathrm{SR} = 200\,\mathrm{V/\mu s}$，对于 $3\,\mathrm{V}$ 的满量程阶跃，压摆耗时仅需 $15\,\mathrm{ns}$。
+
+随后运放进入线性建立阶段，建立至给定误差带 $\epsilon$ 所需的时间为：
+$$ t_{\mathrm{linear}} = -\tau \ln(\epsilon) = -\frac{1}{2\pi \cdot f_{-3\mathrm{dB}}} \ln\left(\frac{0.5}{2^{14}}\right) \approx 10.4 \tau $$
+综合仿真测得总建立时间 $t_s = 800\,\mathrm{ns}$。扣除压摆时间后，系统时间常数 $\tau$ 极为优秀，证明运放在驱动 $40\,\mathrm{pF}$ 负载时不仅具备强大的瞬态电流吞吐能力（$I_{\mathrm{tail}} = \mathrm{SR} \cdot C_c$），也具备足够的闭环带宽。
+
 \subsection{环路稳定性}
 
-\section{电路拓扑}
+双 R-2R 架构带来的最大挑战在于：\textbf{反馈系数 $\beta$ 会随增益设定发生剧烈变化。}
+$$ \beta = \frac{R_g(D_g)}{R_g(D_g) + R_f(D_f)} = \frac{1}{1 + A_v} = \frac{D_f}{D_f + D_g} $$
 
+这里存在两种极端稳定性边界条件：
+\begin{enumerate}
+    \item \textbf{最大增益状态（$A_v = 255$）：} 此时 $\beta \approx 1/256$。闭环带宽发生严重收缩（$f_{-3\mathrm{dB}} = \beta \cdot \mathrm{GBW}$）。必须确保核心运放的 GBW 足够高，才能使得收缩后的带宽仍满足 $\ge 700\,\mathrm{kHz}$ 的系统要求。
+    \item \textbf{最小增益状态（$A_v = 1/255$）：} 此时 $\beta \approx 1$，放大器处于最危险的单位增益跟随状态。这是\textbf{相位裕度（Phase Margin, PM）的最恶劣情况}。
+\end{enumerate}
+为了兼顾这两种极端情况，PGA 的核心放大器必须采用重度密勒补偿，将次主极点（Non-dominant Pole）远远推至 GBW 之外，确保在 $\beta=1$ 时仍能维持 $>60^\circ$ 的健康相位裕度，防止大负载下产生自激振荡。
+
+\section{电路拓扑}
+为了在 $3.3\,\mathrm{V}$ 单电源下驱动巨大的 $40\,\mathrm{pF}$ CDAC 容性负载，同时满足系统对超高线性度与极低稳态误差的苛刻需求，本 PGA 模块的核心运算放大器\textbf{直接复用了前文详细论述的“两级全差分放大器（FDA）”}。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.5\textwidth]{sch.pga.png}
+    \caption{复用前置 FDA 核心结合双 R-2R 网络的 PGA 闭环拓扑结构}
+    \label{fig:sch.pga1}
+\end{figure}
+
+该 FDA 核心采用“折叠共源共栅（Folded-Cascode）第一级 + 共源放大（Common-Source）第二级”的经典两级架构。将其应用于 PGA 中具有以下决定性优势：
+\begin{enumerate}
+    \item \textbf{极致的稳态精度：} 该 FDA 具备高达 $138\,\mathrm{dB}$ 的直流开环增益。在 PGA 配置为极高闭环增益（如 $255\times$，此时反馈系数 $\beta$ 极小）时，庞大的开环增益依然能将闭环静态误差（$\approx 1/A\beta$）压缩至远低于 14-bit 量化台阶的水平，确保了大范围增益调节下的绝对准确度。
+    \item \textbf{强悍的驱动与压摆：} FDA 内部充沛的尾电流与第二级偏置电流，不仅将本底热噪声压制在 $5\,\mathrm{nV/\sqrt{Hz}}$，更为 PGA 提供了 $200\,\mathrm{V/\mu s}$ 的巨大差分压摆率，完美支撑了驱动后级大电容阵列时的瞬态大信号建立。
+    \item \textbf{共模基线死锁：} PGA 整体环路继续沿用了该 FDA 内嵌的高带宽连续时间共模反馈（CMFB）模块。在 PGA 动态切换 R-2R 网络阵列，或遭受前级（TIA）传入的共模基线漂移时，CMFB 环路能够瞬间响应，将差分输出中心电压严格钳位并死锁在目标基准 $1.65\,\mathrm{V}$，防止 ADC 动态量程被共模偏移所侵蚀。
+\end{enumerate}
 \section{设计指标}
+
+经过上述推导与拓扑层面的优化设计，结合实际的瞬态与交流仿真验证，本可编程增益放大器（PGA）模块的最终达成指标汇总如表\ref{tab:pga_final_specs}所示：
+
+\begin{table}[H]
+\centering
+\caption{PGA 模块最终设计与仿真指标汇总}
+\label{tab:pga_final_specs}
+\begin{tabular}{lp{3.5cm}p{7cm}}
+\toprule
+\textbf{设计关键指标项} & \textbf{设计/仿真达成值} & \textbf{工程意义与备注} \\
+\midrule
+架构类型 & 双 8-bit R-2R 反馈 & 实现等效电阻的倒数关系，达成极宽增益覆盖。 \\
+系统增益调节范围 & $1/255 \sim 255\,\mathrm{V/V}$ & 匹配工业复杂多变的前端传感器信号。 \\
+满量程增益步进误差 & $\le 0.01\%$ & 严格限制了传输门 $R_{\mathrm{on}}$ 对二进制加权的影响，保障 14-bit 线性度。 \\
+静态中心输出共模 & $1.65\,\mathrm{V}$ & 由独立的高增益 CMFB 环路锁死。 \\
+等效输入积分噪声 & $67\,\mathrm{\mu V_{rms}}$ (@ $1\times$) & 底噪纯净，折算至 TIA 前端后对总信噪比无影响。 \\
+大信号差分压摆率 & $200\,\mathrm{V/\mu s}$ (@ $40\,\mathrm{pF}$) & 驱动级静态电流充沛，无惧沉重开关电容冲击。 \\
+大信号阶跃建立时间 & $800\,\mathrm{ns}$ ($\pm 0.5\,\mathrm{LSB}$) & 满足 $1\,\mathrm{MS/s}$ SAR ADC 的追踪相（Tracking Phase）时序。 \\
+\bottomrule
+\end{tabular}
+\end{table}

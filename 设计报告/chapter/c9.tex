@@ -1,19 +1,95 @@
-% ----------------------------------------
-% 电容数字模拟转换器（CDAC）
-% ----------------------------------------
 \chapter{电容数字模拟转换器（CDAC）}
+
+在 14-bit 高精度逐次逼近型模数转换器（SAR ADC）中，电容数字模拟转换器（CDAC）不仅承担着输入信号的采样保持（Sample \& Hold）功能，还在逐次逼近过程中充当本地参考电压的数模转换核心。CDAC 的本底噪声、电容匹配精度以及开关的充放电建立时间，直接决定了整个 ADC 的信噪比（SNR）、无杂散动态范围（SFDR）以及最高采样速率。
 
 \section{电路拓扑}
 
+标准的 14-bit 二进制加权 CDAC 需要 $2^{14} = 16384$ 个单位电容（$C_0$），这会导致极其庞大的版图面积，不仅带来致命的寄生电容问题，还会给前级驱动（PGA/缓冲器）造成难以承受的容性负载压力。因此，本设计采用了\textbf{带分段桥接电容（Bridge Capacitor）的全差分 CDAC 拓扑}。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{cdac_topology.png}
+    \caption{14-bit 全差分分段式 CDAC 阵列拓扑结构}
+    \label{fig:cdac_topology}
+\end{figure}
+
+如图\ref{fig:cdac_topology}所示，全差分架构能够天然抑制共模噪声及开关的偶次电荷注入与时钟馈通效应。左右两极差分网络完全对称，采用高位（MSB）与低位（LSB）分段结构，中间通过桥接电容 $C_b$ 耦合，从而将总物理电容数量压减了数个数量级，极大减轻了前端 PGA 的驱动负担。
+
 \section{噪声分析}
+
+在 14-bit 精度下，CDAC 阵列的 $kT/C$ 热噪声是限制系统信噪比（SNR）的根本物理屏障。在采样阶段，开关的导通电阻 $R_{\mathrm{on}}$ 与采样电容阵列共同构成一阶低通网络，其折算到电容上的采样热噪声功率为：
+$$ \overline{v_{n,C}^2} = \frac{k_B T}{C_{\mathrm{total}}} $$
+其中，$k_B$ 为玻尔兹曼常数，$T$ 为绝对温度，$C_{\mathrm{total}}$ 为单边 CDAC 阵列的总采样电容。
+
+对于 14-bit、满量程差分输入范围为 $V_{\mathrm{FSR}} = 2 V_{\mathrm{ref}}$ 的系统，其理想量化噪声功率为：
+$$ \overline{v_{q}^2} = \frac{V_{\mathrm{LSB}}^2}{12} = \frac{1}{12} \left( \frac{2 V_{\mathrm{ref}}}{2^{14}} \right)^2 $$
+为了防止 $kT/C$ 噪声吞噬有效的量化位数（ENOB），通常要求采样热噪声功率小于量化噪声功率的一半（或四分之一）。由此可以反推出单边 CDAC 总电容 $C_{\mathrm{total}}$ 的下限约束：
+$$ C_{\mathrm{total}} \ge 24 k_B T \left( \frac{2^{14}}{2 V_{\mathrm{ref}}} \right)^2 $$
+根据此公式计算，在室温（$300\,\mathrm{K}$）及特定参考电压下，确立了系统的最小单位电容 $C_0$ 的取值。
 
 \section{电容分段桥接技术}
 
+为了缓解总电容面积爆炸，系统将 14-bit 阵列拆分为高 $M$ 位（主 DAC）和低 $L$ 位（子 DAC），即 $M+L = 14$。串联在两者之间的桥接电容 $C_b$ 必须满足严格的串联等效关系。
+为了使高低位无缝衔接，从高位端看向低位端，整个低位阵列外加桥接电容的总等效电容必须等于一个高位单位电容（$C_0$）。根据串联分压公式：
+$$ \frac{1}{C_b} + \frac{1}{C_{\mathrm{LSB\_total}}} = \frac{1}{C_0} $$
+假设低位阵列为 $L$ 位标准的二进制电容阵列，其总电容为 $C_{\mathrm{LSB\_total}} = 2^L C_0$，则理想桥接电容为：
+$$ C_b = C_0 \cdot \frac{2^L}{2^L - 1} $$
+由于 $C_b$ 呈现非整数倍特性（分数电容），在版图实现中极易产生工艺失配。本设计采用了伪单位电容拼接或特定的非二进制冗余（Redundancy）权重分配来吸收桥接电容的边缘毛刺误差，保障系统不会出现非单调性（Missing Code）。
+
 \section{电容切换技术}
+
+传统的 SAR ADC 切换方法（如基于地的切换）在每次位测试（Bit Cycling）时需要消耗大量的开关动态能量，并在参考电压源（$V_{\mathrm{ref}}$）上引起剧烈的电流抽取（Current Kickback）。
+本设计采用了 \textbf{$V_{\mathrm{cm}}$（共模基准）切换技术（$V_{\mathrm{cm}}$-based Switching）}。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{cdac_switching.png}
+    \caption{$V_{\mathrm{cm}}$ 切换时序与等效电路图解(该图来自于论文)}
+    \label{fig:cdac_switching}
+\end{figure}
+
+在采样相，CDAC 的下极板全部接入输入信号，上极板短接至共模电平 $V_{\mathrm{cm}}$（通常为 $V_{\mathrm{ref}}/2$）。在首次逼近（MSB 判断）时，高位电容无需进行物理开关动作，而是直接比较采样保持后的顶板电平，这不仅节省了 MSB 的判断时间，更相比传统架构节省了约 $87.5\%$ 的动态开关能量。整个转换过程中的总开关能量消耗 $E_{\mathrm{total}}$ 大幅降低为：
+$$ E_{\mathrm{total}} = \sum_{i=1}^{13} C_i (\Delta V_i)^2 $$
+此切换方案极大地缓解了基准电压缓冲器（Reference Buffer）的供电压力，保障了高频转换下的建立精度。
 
 \section{充放电时间分析}
 
+SAR ADC 在逐次逼近阶段，受数字逻辑控制的 CMOS 传输门需要快速切换，对 CDAC 中的特定电容网络（$C_L$）进行充放电。如果建立时间不足，将引起严重的动态非线性误差。为了精确优化传输门的尺寸并评估 RC 建立时间，本设计采用了一种基于线性回归的 CMOS 传输门宏模型。
+
+该宏模型将传输门的充放电过程等效为一个离散时间系统：
+$$ V_o(z) = \frac{a_0 + a_1 z^{-1} + a_2 z^{-2} + \dots}{b_0 + b_1 z^{-1} + b_2 z^{-2} + \dots} V_{in}(z) $$
+
+通过 Z 逆变换与回归分析，可将其转化为离散时间域的计算公式，输出电压 $V_0(t_n)$ 由当前输入、历史输入以及历史输出的线性组合决定：
+$$ V_0(t_n) = c_0 + c_1 V_{in}(t_n) + c_2 V_{in}(t_{n-1}) + c_3 V_{in}(t_{n-2}) + c_4 V_0(t_{n-1}) + c_5 V_0(t_{n-2}) + e_n $$
+
+其中，极其关键的是，模型中的系数 $c_i$（$i=0,1,\dots,5$）是传输门晶体管宽长比（$S$）与所驱动的负载电容（$C_L$）的非线性函数：
+$$ f_i(C_L,S) = K_{0i} + K_{1i}S + K_{2i}C_L + K_{3i}SC_L + K_{4i}\frac{S}{C_L} + K_{5i}\frac{C_L}{S} + K_{6i}\log\left(\frac{S}{C_L}\right) $$
+
+为了简化参数提取，该宏模型假设传输门中的 PMOS 和 NMOS 具有相同的宽长比（$S$）。仿真证明，当负载电容与开关尺寸的比值 $C_L/S < 0.1$ 时，该数学模型输出的波形与底层 SPICE 瞬态仿真结果高度吻合。
+
+在 14-bit CDAC 的实际设计中，由于高位电容（如 MSB）极大，而低位电容（LSB）极小，所面对的 $C_L$ 跨度极大。利用上述宏模型，我们避免了繁重的 SPICE 蒙特卡洛迭代，通过代数计算直接为阵列中的每一位电容分配了最佳的开关宽长比 $S$。这使得无论哪一位切换，其等效阻容常数 $\tau \approx R_{\mathrm{on}}(S) \cdot C_L$ 均能保证在分配的位循环（Bit-Cycling）时间窗口内完成 $> 14 \tau$ 的充放电建立（稳态误差 $< \frac{1}{2^{14}}$）。
+
 \section{设计指标}
 
+结合上述拓扑选型与基于宏模型的瞬态建立优化，本系统 CDAC 的核心参数设计指标如表\ref{tab:cdac_final_specs}所示：
 
+\begin{table}[H]
+\centering
+\caption{14-bit 全差分 CDAC 核心设计指标}
+\label{tab:cdac_final_specs}
+\begin{tabular}{lll}
+\toprule
+\textbf{设计参数} & \textbf{配置目标 / 计算值} & \textbf{备注说明} \\
+\midrule
+系统分辨率 & 14-bit & SAR ADC 全局指标 \\
+电容阵列架构 & 桥接分段式 (Segmented) & 降低总面积与驱动负载 \\
+开关切换策略 & $V_{\mathrm{cm}}$ (共模) 切换 & 消除 MSB 判断时间，降低功耗 \\
+单位电容 ($C_0$) & 待填 $\mathrm{fF}$ & 满足 $kT/C$ 热噪声下限约束 \\
+单边总电容 ($C_{\mathrm{total}}$) & 待填 $\mathrm{pF}$ & 包含高低位及桥接等效电容 \\
+开关尺寸比例 ($C_L/S$) & $< 0.1$ & 保障基于宏模型的建立精度 \\
+单步位建立时间 & $\le$ 待填 $\mathrm{ns}$ & 保留充足建立裕度（$>14\tau$） \\
+\bottomrule
+\end{tabular}
+\end{table}
 
+\end{document}

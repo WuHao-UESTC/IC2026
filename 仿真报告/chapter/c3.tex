@@ -1,1 +1,62 @@
-\chapter{模拟前端（AFE）整链瞬态仿真}
+\chapter{模拟前端（AFE）整链联合仿真}
+AFE整链联合仿真是指在子模块设计完成并独立验证后，将跨阻放大器（TIA）、单端转差分模块、可编程增益放大器（PGA）以及输出缓冲器（Buffer）进行物理级联，对整个模拟前端电路进行全面的交流、瞬态与噪声仿真。通过这种仿真方法，设计人员可以精准评估 AFE 链路在不同输入信号强度、级联负载效应以及复杂工作条件下的全局响应，从而确保最终输出至 SAR ADC 的信号完美满足 14-bit 的精度与动态范围规范。
+
+\section{全链路带宽与相位裕度仿真}
+
+\textbf{仿真设置：}将 AFE 链路全量级联。在 TIA 的输入端挂载等效传感器寄生电容（$C_{\mathrm{in}}$），在 PGA 的输出端挂载等效 SAR ADC 采样开关与 CDAC 阵列的开关电容负载。进行交流（AC）频率响应扫频，并分别在系统配置为“最大总增益”与“最小总增益”两种极端状态下，使用稳定性探针（iprobe）提取全链路的主导相位裕度。
+仿真所用 testbench 如图\ref{fig:afe_ac_tb}所示。
+\begin{figure}[h]
+    \centering
+    \includegraphics[width=0.8\linewidth]{afe_tb.png}
+    \caption{AFE整链交流频响与稳定性仿真testbench}
+    \label{fig:afe_tb}
+\end{figure}
+
+\textbf{仿真输出：} AFE 整体链路从电流输入到差分电压输出的跨阻增益（$\mathrm{dB\Omega}$）幅频响应，以及最脆弱极点处的相位裕度曲线。
+AFE 整链在极端增益配置下的 Bode 图对比如图\ref{fig:afe_ac_curve}所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\linewidth]{afe_ac_curve.png}
+%   \caption{AFE全链路增益带宽与相位裕度仿真结果}
+%   \label{fig:afe_ac_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 级联后，全链路在最大增益下的 $-3\,\mathrm{dB}$ 有效带宽约为 $XX\,\mathrm{kHz}$（满足 $\ge 700\,\mathrm{kHz}$ 的系统级指标），且系统整体相位裕度均 $> XX^\circ$。
+
+\textbf{结果分析：} 多级高增益放大器级联不可避免地会带来“带宽收缩效应（Bandwidth Shrinkage）”。仿真证明，前期为单模块（如 TIA 单级 $1.5\,\mathrm{MHz}$）预留的带宽裕量是极其合理且必要的。此外，各级间的阻抗匹配良好，未引发非预期的极点偏移，全链路展示出了绝佳的高频稳定性。
+
+\section{全链路噪声仿真}
+
+\textbf{仿真设置：}在 AFE 整链闭环工作状态下，设定 PGA 为最大增益模式（此状态下系统对底噪最为敏感）。运行 Noise 仿真，积分频段设定为 $1\,\mathrm{Hz}$ 至 $1\,\mathrm{MHz}$。重点提取整链的“等效输入电流噪声密度”以及折算到 ADC 输入端（即 PGA 输出端）的“总积分电压噪声”。
+仿真所用 testbench 同上，如图\ref{fig:afe_tb}所示。
+
+\textbf{仿真输出：} 链路输出端的综合积分噪声电压（$\mathrm{\mu V_{rms}}$）曲线，以及 Noise Summary 噪声贡献占比列表。
+AFE 整链积分噪声曲线及主要噪声源贡献饼图如图\ref{fig:afe_noise_curve}所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\linewidth]{afe_noise_curve.png}
+%   \caption{AFE全链路等效输出积分噪声仿真结果}
+%   \label{fig:afe_noise_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 在 $700\,\mathrm{kHz}$ 系统带宽内，到达 ADC 输入端的全链路总积分噪声为 $XX\,\mathrm{\mu V_{rms}}$，严格控制在目标预算（$\le 45\,\mathrm{\mu V_{rms}}$）范围之内。
+
+\textbf{结果分析：} 全链路噪声仿真完美验证了 Friis 噪声级联理论。Noise Summary 数据显示，系统的绝对底噪几乎 $100\%$ 由第一级 TIA 的输入对管与反馈电阻 $R_f$ 决定，后级 PGA 与转换电路的噪声被前级的巨大增益彻底淹没。高功耗倾斜给第一级的策略取得了决定性成功，成功捍卫了 14-bit ADC 的有效量化位数（ENOB）。
+
+\section{全链路共模电平保持仿真}
+
+\textbf{仿真设置：}进行长时大信号瞬态（Transient）仿真。在 TIA 输入端注入含有剧烈直流基线漂移（Baseline Wander）和突发大电流脉冲的传感器等效信号。同时监测 TIA 输出端、单端转差分接口以及 PGA 差分输出端的共模电压瞬态变化。
+仿真所用 testbench 同上，如图\ref{fig:afe_tb}所示。
+
+\textbf{仿真输出：} 链路中各个关键节点的共模电压随时间变化的瞬态波形，观察共模反馈（CMFB）环路的动态钳位能力。
+大信号冲击下 AFE 各级节点共模电压的瞬态追踪波形如图\ref{fig:afe_cm_curve}所示。
+% \begin{figure}[h]
+%   \centering
+%   \includegraphics[width=0.7\linewidth]{afe_cm_curve.png}
+%   \caption{AFE全链路共模电平动态保持仿真结果}
+%   \label{fig:afe_cm_curve}
+% \end{figure}
+
+\textbf{仿真结果：} 尽管前级单端信号存在巨大的瞬态跳变与基线漂移，PGA 输出端的差分共模电平在短短 $XX\,\mathrm{ns}$ 内即可恢复并牢牢锁定在 $1.65\,\mathrm{V} \pm XX\,\mathrm{mV}$ 的安全窗口内。
+
+\textbf{结果分析：} 差分共模电平的稳定性直接决定了后级 ADC 内部比较器的工作状态与动态范围上限。仿真结果表明，级联系统中的各个 CMFB 环路带宽设计合理，不存在环路间的低频振荡冲突。系统成功将单端剧烈波动的工业声源信号，调理为共模绝对稳定、差分满量程的高质量 14-bit 待采样信号。

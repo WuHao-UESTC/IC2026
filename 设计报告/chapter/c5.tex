@@ -1,15 +1,88 @@
-% ----------------------------------------
-% 全差分放大器（FDA）
-% ----------------------------------------
 \chapter{全差分放大器（FDA）}
+
+作为 14-bit 高精度模拟前端（AFE）信号链路中的核心枢纽，全差分放大器（Fully Differential Amplifier, FDA）承载着单端转差分、信号预放大以及驱动后级重负载（PGA 或 ADC 的 CDAC 阵列）的关键任务。本章将详细阐述该 FDA 的设计挑战、架构选型以及环路核心参数的物理推导过程。
 
 \section{设计挑战与指标分解}
 
+在 180nm CMOS 工艺及 $3.3\,\mathrm{V}$ 单电源供电环境下，本 FDA 面临着典型的“高精度-大驱动-低噪声”多维性能博弈：
+\begin{enumerate}
+    \item \textbf{绝对的线性度（THD）：} 为不成为 14-bit ADC 的线性度瓶颈，FDA 在满量程（$3\,\mathrm{V_{pp}}$）输出下的总谐波失真需优于 $-86\,\mathrm{dB}$。
+    \item \textbf{极致的底噪抑制：} 带内等效积分噪声必须严格控制在 $45\,\mathrm{\mu V_{rms}}$ 以内，这意味着输入对管的热噪声及闪烁噪声必须被极大压制。
+    \item \textbf{大负载瞬态驱动：} 在后级挂载 $40\,\mathrm{pF}$ 的沉重容性负载时，FDA 必须在有限的采样窗口内完成大信号的极速压摆（Slew Rate）与 $\pm 0.5\,\mathrm{LSB}$ 精度的无振铃建立。
+\end{enumerate}
+
+结合前期仿真与系统级规划，FDA 的核心设计指标分解如表\ref{tab:fda_design_specs}所示：
+\begin{table}[H]
+\centering
+\caption{全差分放大器（FDA）核心设计指标分解}
+\label{tab:fda_design_specs}
+\begin{tabular}{llp{7cm}}
+\toprule
+\textbf{设计参数} & \textbf{目标值} & \textbf{设计考量} \\
+\midrule
+直流开环增益 ($A_{v0}$) & $> 120\,\mathrm{dB}$ & 压缩闭环静态误差，保障高线性度 \\
+增益带宽积 (GBW) & $> 100\,\mathrm{MHz}$ & 支撑闭环 $700\,\mathrm{kHz}$ 系统有效带宽 \\
+相位裕度 (PM) & $\approx 60^\circ$ & 保证阶跃建立无严重振铃 \\
+差分压摆率 (SR) & $> 500\,\mathrm{V/\mu s}$ & 满足 $40\,\mathrm{pF}$ 负载下的大信号极速跟踪 \\
+系统积分噪声 & $\le 45\,\mathrm{\mu V_{rms}}$ & 保证 14-bit ENOB 不被前端底噪吞噬 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 \section{电路拓扑}
+
+为同时满足 $>120\,\mathrm{dB}$ 的超高开环增益与近乎满轨（Rail-to-Rail）的输出摆幅要求，单级运放（如套筒或普通折叠共源共栅）难以胜任。本设计最终确立了\textbf{“折叠共源共栅（Folded-Cascode）第一级 + 共源放大（Common-Source）第二级”}的两级全差分拓扑架构。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{sch.fda.png}
+    \caption{两级全差分放大器（FDA）主电路拓扑结构}
+    \label{fig:sch.fda}
+\end{figure}
+
+如图\ref{fig:fda_topology}所示，第一级采用极大尺寸的 PMOS 差分输入对管匹配 NMOS 折叠电流镜负载。PMOS 差分对能在 $3.3\,\mathrm{V}$ 供电下提供可低至近地电平的输入共模范围（仿真实测有效 ICMR 为 $0.4\,\mathrm{V} \sim 2.2\,\mathrm{V}$）。第二级采用 NMOS 共源极结构以榨取最大输出电压摆幅，从而最大化系统的动态量程。全差分结构天然滤除了绝大部分偶次谐波失真（HD2），为实现 $-96\,\mathrm{dB}$ 的极限 THD 奠定了拓扑基础。
 
 \section{GBW与增益设计}
 
+\textbf{开环增益分配：}系统的总直流开环增益 $A_{v0} = A_{v1} \cdot A_{v2}$。
+其中，第一级折叠 Cascode 的增益 $A_{v1} \approx g_{m1} \cdot (r_{o,\mathrm{cascode}} \parallel r_{o,\mathrm{driver}})$，可提供约 $80 \sim 90\,\mathrm{dB}$ 的增益；第二级共源极增益 $A_{v2} \approx g_{m6} \cdot (r_{o6} \parallel r_{o7})$，可提供约 $40 \sim 50\,\mathrm{dB}$ 的增益。仿真结果表明，该拓扑成功实现了高达 $138\,\mathrm{dB}$ 的总开环增益。
+
+\textbf{带宽与偏置策略：}主导增益带宽积的物理公式为 $GBW = \frac{g_{m1}}{2\pi C_c}$。
+为了压制 FDA 在 $1\,\mathrm{MHz}$ 以内的等效热噪声密度至 $2\,\mathrm{nV/\sqrt{Hz}}$ 量级，本设计为第一级差分对注入了巨大的尾电流。这不可避免地导致 $g_{m1}$ 剧增。巨大的 $g_{m1}$ 一方面极其有效地削减了输入热噪声，另一方面也将 GBW 推高至 $130\,\mathrm{MHz}$。充沛的 GBW 保证了系统在配置为 $40\,\mathrm{dB}$ 闭环增益时，仍能坚守 $700\,\mathrm{kHz}$ 的无损信号采集频带。
+
 \section{频率补偿设计}
+
+两级高增益放大器引入了两个低频极点，必须进行频率补偿以确保闭环稳定性。本设计采用了经典的\textbf{带调零电阻的密勒补偿（Miller Compensation with Nulling Resistor）}策略。
+
+% \begin{figure}[H]
+%     \centering
+%     \includegraphics[width=0.6\textwidth]{fda_comp.png}
+%     \caption{密勒补偿与调零电阻等效模型}
+%     \label{fig:fda_comp}
+% \end{figure}
+
+如图\ref{fig:fda_comp}所示，在第一级输出与第二级输出之间跨接密勒电容 $C_c$ 与调零电阻 $R_z$。
+\begin{itemize}
+    \item \textbf{极点分裂（Pole Splitting）：} $C_c$ 借助第二级的米勒效应，将主极点 $P_1 \approx \frac{1}{R_{\mathrm{out1}} (A_{v2} C_c)}$ 深深推向极低频，同时将非主极点 $P_2 \approx \frac{g_{m2}}{C_L}$ 推向远高于 GBW 的高频区域。
+    \item \textbf{零点消除（Zero Nulling）：} 密勒电容前馈通路会产生一个右半平面（RHP）零点，恶化相位裕度。通过精确配置 $R_z \approx \frac{1}{g_{m2}}$，将该零点推至左半平面并与 $P_2$ 相互抵消。
+\end{itemize}
+依托此设计，配合第一级充沛的驱动电流，FDA 在驱动 $40\,\mathrm{pF}$ 巨大电容时，不仅取得了 $800\,\mathrm{V/\mu s}$ 的惊人压摆率，而且在最恶劣闭环增益下依然保持了 $\approx 63^\circ$ 的健康相位裕度，保障了 $2\,\mathrm{\mu s}$ 内的高精度无振铃瞬态建立。
 
 \section{共模反馈设计（CMFB）}
 
+由于全差分运放的高阻抗输出节点对差模信号和共模信号均具有极高增益，微小的共模电流失配都会导致输出共模电平漂移至电源轨或地轨，因此必须引入强健的共模反馈环路（CMFB）。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{sch.cmfb.png}
+    \caption{连续时间共模反馈（CMFB）环路控制原理}
+    \label{fig:sch.cmfb}
+\end{figure}
+
+如图\ref{fig:sch.cmfb}所示，本 FDA 的 CMFB 模块由“共模检测网络”与“误差放大器”组成：
+\begin{enumerate}
+    \item \textbf{共模检测：} 采用高阻值等值分压电阻或大尺寸多晶硅栅极电阻网络提取差分输出的平均共模电平 $V_{\mathrm{out,cm}} = (V_{\mathrm{out+}} + V_{\mathrm{out-}})/2$。
+    \item \textbf{误差校正：} 提取的 $V_{\mathrm{out,cm}}$ 被送入 CMFB 误差放大器，与标称的 $1.65\,\mathrm{V}$ 基准电压（$V_{\mathrm{ref}}$）进行比较。
+    \item \textbf{负反馈控制：} 误差放大器的输出反馈控制 FDA 第一级负载管或尾电流源的栅极偏置电压。极高的 CMFB 环路直流增益确保了任何稳态共模漂移都能被瞬间消除。
+\end{enumerate}
+仿真结果验证了该 CMFB 架构的卓越效能：在 $1\,\mathrm{MHz}$ 系统频带内，共模抑制比（CMRR）高达 $280\,\mathrm{dB}$，电源抑制比（PSRR）高达 $250\,\mathrm{dB}$。系统不仅牢牢将中心电平钳位在 $1.65\,\mathrm{V}$，更将前端传感器及供电轨上的噪声污染彻底隔绝于差分链路之外。

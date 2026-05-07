@@ -1,1 +1,77 @@
-\chapter{仿真结果与设计指标对比}
+\chapter{设计指标与仿真结果对比总结}
+
+基于前文对模拟前端（AFE）各核心模块的详细设计与仿真验证，本章将设计初期设定的技术指标与 Cadence Virtuoso 环境下的实测仿真结果进行汇总对比。通过综合评估可以看出，各模块均达到或超过了预期的设计目标，为 14-bit 高精度系统的实现提供了充足的物理性能裕量。
+
+\section{全差分放大器（FDA）指标对比}
+
+全差分放大器作为信号链路的枢纽，其开环增益与噪声表现直接决定了系统的静态精度与动态底线。核心指标对比结果如下表\ref{tab:compare_fda}所示：
+
+\begin{table}[H]
+\centering
+\caption{全差分放大器（FDA）设计目标与仿真结果对比}
+\label{tab:compare_fda}
+\begin{tabular}{lccc}
+\toprule
+\textbf{性能参数} & \textbf{设计目标} & \textbf{仿真结果} & \textbf{结论} \\
+\midrule
+直流开环增益 ($A_{v0}$) & $> 120\,\mathrm{dB}$ & $138\,\mathrm{dB}$ & \textbf{达标} \\
+增益带宽积 (GBW) & $> 100\,\mathrm{MHz}$ & $130\,\mathrm{MHz}$ & \textbf{达标} \\
+相位裕度 (PM) & $\approx 60^\circ$ & $63^\circ$ & \textbf{达标} \\
+差分压摆率 (SR) & $> 500\,\mathrm{V/\mu s}$ & $800\,\mathrm{V/\mu s}$ & \textbf{达标} \\
+总积分噪声 ($0 \sim 1\,\mathrm{MHz}$) & $\le 45\,\mathrm{\mu V_{rms}}$ & $45\,\mathrm{\mu V_{rms}}$ & \textbf{达标} \\
+总谐波失真 (THD @ $100\,\mathrm{kHz}$) & $\le -86\,\mathrm{dB}$ & $-96.2\,\mathrm{dB}$ (典型) & \textbf{极佳} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{可编程增益放大器（PGA）指标对比}
+
+PGA 侧重于增益步进的准确性与大负载容性驱动下的建立时间。依托双 8-bit R-2R 网络及复用 FDA 核心，其实测指标表现极其稳健：
+
+\begin{table}[H]
+\centering
+\caption{可编程增益放大器（PGA）设计目标与仿真结果对比}
+\label{tab:compare_pga}
+\begin{tabular}{lccc}
+\toprule
+\textbf{性能参数} & \textbf{设计目标} & \textbf{仿真结果} & \textbf{结论} \\
+\midrule
+增益调节范围 & $1/255 \sim 255\,\mathrm{V/V}$ & $1/255 \sim 255\,\mathrm{V/V}$ & \textbf{一致} \\
+最大增益相对误差 & $\le 0.01\%$ & $\le 0.008\%$ & \textbf{达标} \\
+中心输出共模电平 & $1.65\,\mathrm{V}$ & $1.65\,\mathrm{V} \pm 0.01\,\mathrm{mV}$ & \textbf{达标} \\
+$40\,\mathrm{pF}$ 负载建立时间 ($t_s$) & $\le 1\,\mathrm{\mu s}$ & $800\,\mathrm{ns}$ & \textbf{达标} \\
+模块等效积分噪声 & $\le 70\,\mathrm{\mu V_{rms}}$ & $67\,\mathrm{\mu V_{rms}}$ & \textbf{达标} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{单端转差分（S2D）与 TIA 级指标对比}
+
+针对前端信号转换与跨阻放大级，实测证明系统在极短的采样时间窗口内具备优异的收敛速度与极低的建立误差：
+
+\begin{table}[H]
+\centering
+\caption{单端转差分（S2D）电路核心指标对比}
+\label{tab:compare_s2d}
+\begin{tabular}{lccc}
+\toprule
+\textbf{性能参数} & \textbf{理论要求} & \textbf{仿真结果} & \textbf{结论} \\
+\midrule
+$95\,\mathrm{ns}$ 瞬态建立误差 & $< 201\,\mathrm{\mu V}$ (0.5 LSB) & $144.8\,\mathrm{\mu V}$ & \textbf{优良} \\
+输出信号范围 & $\pm 3.3\,\mathrm{V}$ (全差分) & $6.60\,\mathrm{V_{pp}}$ & \textbf{一致} \\
+系统闭环带宽 & $> 2.5\,\mathrm{MHz}$ & $4.12\,\mathrm{MHz}$ & \textbf{达标} \\
+系统综合热噪声密度 & $-$ & $44.3\,\mathrm{\mu V/\sqrt{Hz}}$ & \textbf{参考} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{综合结果分析}
+
+通过对上述三大核心模块的全面数据对比与时频域分析，可以得出以下系统级结论：
+\begin{enumerate}
+    \item \textbf{核心性能溢出保障线性度：} FDA 核心的开环增益比理论目标值高出了 $18\,\mathrm{dB}$。这极为丰厚的增益裕量将闭环稳态误差极度压缩，是满量程 THD 能够深达 $-96.2\,\mathrm{dB}$ 的根本原因，完全超越了 14-bit 系统对前端非线性失真的容忍下限。
+    \item \textbf{建立时间窗口充沛：} AFE 整体信号链展现了极其强悍的大信号瞬态响应能力。S2D 电路在 $95\,\mathrm{ns}$ 内即可完成半个 LSB 精度的收敛，而负担最重的 PGA（驱动 $40\,\mathrm{pF}$ 等效阵列）在极端负载下建立时间也仅需 $800\,\mathrm{ns}$。这不仅满足了当前 $1\,\mathrm{MS/s}$ 转换速率的需求，更为系统后续在更高采样率下的架构演进预留了宝贵的时序空间。
+    \item \textbf{噪声预算严密闭合：} 在 14-bit 高精度体系下，底噪是吞噬信噪比的最大元凶。通过对第一级极高功耗的偏置倾斜（提升 $g_m$ 压低热噪声），各级贡献的积分噪声经级联折算后，均成功被限制在 $\le 45\,\mathrm{\mu V_{rms}}$ 的苛刻红线附近，证明了整体低噪声设计的有效性，成功捍卫了系统的有效位数（ENOB）。
+\end{enumerate}
+
+\end{document}

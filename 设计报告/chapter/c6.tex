@@ -1,12 +1,76 @@
 % ----------------------------------------
 % 单端转差分电路
 % ----------------------------------------
+% ----------------------------------------
+% 单端转差分电路
+% ----------------------------------------
 \chapter{单端转差分电路}
+
+在 14-bit 高精度数据采集系统中，前端传感器输出的信号通常为单端单极性信号（例如 $0 \sim 3.3\,\mathrm{V}$）。为了最大化后级全差分 SAR ADC 的动态范围并提高共模噪声抑制能力，必须在信号链中引入单端转差分（Single-Ended to Differential, S2D）调理电路。本章详细论述该电路的拓扑选型、增益配置与频率补偿设计。
 
 \section{电路拓扑}
 
+为了实现高保真的信号转换并隔离 ADC 采样时的电荷回踢（Charge Kickback），本设计采用了\textbf{“高阻抗运放缓冲级 + 宽带全差分放大器（FDA）”}的两级级联拓扑架构。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\linewidth]{sin-diff.png}
+    \caption{单端转差分（S2D）电路主拓扑结构与仿真 testbench}
+    \label{fig:sin-diff}
+\end{figure}
+
+如图 \ref{fig:s2d_topology_tb} 所示，电路可分为两部分：
+\begin{enumerate}
+    \item \textbf{输入缓冲级：} 采用宽带（$100\,\mathrm{MHz}$ GBW）的运算放大器配置为电压跟随器。其极高的输入阻抗有效避免了对前端传感器的负载效应，同时其极低的输出阻抗为后级 FDA 提供了坚实的驱动源，彻底隔离了后级开关电容阵列（CDAC）带来的瞬态电荷干扰。
+    \item \textbf{全差分转换级：} 采用低噪声（$5\,\mathrm{nV/\sqrt{Hz}}$）、$100\,\mathrm{MHz}$ 高带宽的全差分放大器执行核心的 单端到差分（S2D） 转换。单端信号从其同相端电阻 $R_{g1}$ 注入，通过反相端的对称接地网络完成完美的差分翻转。
+\end{enumerate}
+
 \section{增益与频率补偿}
+
+\textbf{1. 增益设计：}
+系统前端输入为 $0 \sim 3.3\,\mathrm{V}$ 的单极性单端信号，而后级 SAR ADC 的满量程差分输入范围（FSR）为 $\pm 3.3\,\mathrm{V}$。为了充分利用 ADC 的动态范围，S2D 电路的闭环增益 $A_v$ 必须设计为 2 倍。
+根据 FDA 闭环增益公式：
+$$ A_v = \frac{V_{\mathrm{out,diff}}}{V_{\mathrm{in,single}}} = \frac{R_f}{R_g} $$
+综合考量热噪声贡献与系统功耗，选取反馈电阻 $R_f = 2\,\mathrm{k}\Omega$，输入电阻 $R_g = 1\,\mathrm{k}\Omega$，从而精准实现 $2\,\mathrm{V/V}$ 的信号放大。
+
+\textbf{2. 频率补偿与低通滤波：}
+为了限制宽带放大器的本底噪声积分带宽并提升环路相位裕度，在反馈电阻 $R_f$ 两端并联了反馈电容 $C_f = 30\,\mathrm{pF}$。该并联网络在闭环响应中引入了一个极点，构成一阶有源低通滤波器。其截止频率 $f_c$ 为：
+$$ f_c = \frac{1}{2\pi R_f C_f} = \frac{1}{2\pi \times 2\,\mathrm{k}\Omega \times 30\,\mathrm{pF}} \approx 2.65\,\mathrm{MHz} $$
+该带宽（$2.65\,\mathrm{MHz}$）约为 ADC 采样率（$250\,\mathrm{ksps}$）的 10 倍以上，在滤除高频噪声的同时，保证了信号的极速建立。
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.6\linewidth]{sin_diff_comp.png}
+    \caption{单端转差分电路交流幅频响应（AC Transfer Characteristics）}
+    \label{fig:sin_diff_comp}
+\end{figure}
+
+\textbf{3. 输出电荷桶滤波器（Charge Bucket Filter）：}
+在 FDA 输出端与 ADC 输入端之间，插入了由 $R_{\mathrm{filt}} = 18.2\,\Omega$ 和 $C_{\mathrm{filt}} = 330\,\mathrm{pF}$ 构成的 RC 滤波器。该滤波器不仅展平了放大器的高频输出阻抗以确保稳定性，其巨大的 $330\,\mathrm{pF}$ 电容更作为“电荷桶”，在 ADC 进入采样相位的瞬间为其内部 CDAC 提供瞬态电流，极大地缩短了建立时间。
 
 \section{输出共模电压失调抑制}
 
+在单端转差分结构中，输入的直流分量极易导致输出共模漂移。本设计充分利用了 FDA 的共模反馈（CMFB）特性。
+将 前文中提到的 的 $V_{\mathrm{ocm}}$ 引脚严格偏置于 $1.65\,\mathrm{V}$（即 $3.3\,\mathrm{V}$ AVDD 的中心电平）。无论前端单端信号如何在 $0 \sim 3.3\,\mathrm{V}$ 之间剧烈摆动，其内部高增益的 CMFB 环路都会强制输出端 $V_{\mathrm{out+}}$ 和 $V_{\mathrm{out-}}$ 的平均值死锁在 $1.65\,\mathrm{V}$。
+这使得输出信号完美对称地在 $0 \sim 3.3\,\mathrm{V}$ 之间交叉摆动，最终合成为绝对中心对称的 $\pm 3.3\,\mathrm{V}$ 差分信号，如图\ref{fig:s2d_dc_transfer}的传输特性曲线所示，彻底消除了共模电压失调对 ADC 动态量程的挤压。
+
 \section{设计指标}
+基于上述电路元件选型与物理公式推导，设计单端转差分电路指标如下：
+\begin{table}[H]
+\centering
+\caption{单端转差分电路（S2D）核心仿真指标汇总}
+\label{tab:s2d_final_specs}
+\begin{tabular}{lll}
+\toprule
+\textbf{指标项} & \textbf{设计/仿真结果} & \textbf{备注说明} \\
+\midrule
+输入信号范围 & $0 \sim 3.3\,\mathrm{V}$ (单端) & 匹配典型传感器输出 \\
+输出信号范围 & $\pm 3.3\,\mathrm{V}$ (全差分) & 匹配后级 SAR ADC 满量程 \\
+闭环差分增益 & $2.0\,\mathrm{V/V}$ & 由 $R_f = 2\,\mathrm{k}\Omega, R_g = 1\,\mathrm{k}\Omega$ 设定 \\
+输出中心共模 & $1.65\,\mathrm{V}$ & 由 FDA $V_{\mathrm{ocm}}$ 引脚强制钳位 \\
+系统闭环带宽 & $4.12\,\mathrm{MHz}$ & 提供优异的高频滚降与建立速度 \\
+瞬态建立误差 & $144.8\,\mathrm{\mu V}$ (@ $95\,\mathrm{ns}$) & $< 0.5\,\mathrm{LSB}$ ($201\,\mathrm{\mu V}$)，确保 14-bit 精度无损 \\
+系统综合噪声 & $44.3\,\mathrm{\mu V_{rms}}$ & 热噪声与阻容网络耦合的总积分值 \\
+\bottomrule
+\end{tabular}
+\end{table}
