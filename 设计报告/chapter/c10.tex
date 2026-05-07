@@ -122,33 +122,7 @@ reg [3:0] state;
 双极性SAR状态转移流程如图\ref{fig:bipolar_fsm_flow}所示。
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[
-    node distance=2.15cm,
-    state/.style={draw, rounded corners, minimum width=2.7cm, minimum height=0.82cm, align=center},
-    arrow/.style={->, thick}
-]
-\node[state] (idle) {\texttt{IDLE}};
-\node[state, right of=idle] (presample) {\texttt{PRE\_SAMPLE}};
-\node[state, right of=presample] (pretop) {\texttt{PRE\_TOP}};
-\node[state, right of=pretop] (prehold) {\texttt{PRE\_HOLD}};
-\node[state, below of=prehold] (precmp) {\texttt{PRE\_CMP}};
-\node[state, left of=precmp] (sample) {\texttt{SAMPLE}};
-\node[state, left of=sample] (top) {\texttt{TOP\_RELEASE}};
-\node[state, left of=top] (hold) {\texttt{HOLD}};
-\node[state, below of=top] (sar) {\texttt{SAR\_BIT}};
-\node[state, below of=sar] (done) {\texttt{DONE}};
-\draw[arrow] (idle) -- node[above]{\texttt{enable}} (presample);
-\draw[arrow] (presample) -- node[above]{预采样计满} (pretop);
-\draw[arrow] (pretop) -- node[above]{释放计满} (prehold);
-\draw[arrow] (prehold) -- node[right]{稳定计满} (precmp);
-\draw[arrow] (precmp) -- node[below]{符号锁存} (sample);
-\draw[arrow] (sample) -- node[below]{正式采样计满} (top);
-\draw[arrow] (top) -- node[below]{释放计满} (hold);
-\draw[arrow] (hold) -- node[left]{施加bit12 trial} (sar);
-\draw[arrow] (sar) -- node[right]{13位完成} (done);
-\draw[arrow] (done) to[bend left=35] node[left]{\texttt{!enable}} (idle);
-\draw[arrow] (done) to[bend right=35] node[right]{连续模式} (presample);
-\end{tikzpicture}
+\includegraphics[width=0.92\textwidth]{state_flow.png}
 \caption{双极性SAR状态机流程}
 \label{fig:bipolar_fsm_flow}
 \end{figure}
@@ -158,25 +132,7 @@ reg [3:0] state;
 SPI配置接口用于在转换前写入工作模式、采样时间、建立时间、比较时间以及连续转换使能等控制位。其时序图适合放置在状态机说明之后、具体采样状态说明之前，因为该位置能够先交代数字接口如何装载寄存器，再说明寄存器参数如何影响后续SAR状态转移。SPI协议时序如图\ref{fig:sar_spi_timing}所示。
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=0.75cm,y=0.55cm,>=Latex]
-    \draw[->] (0,0) -- (14,0) node[right] {$t$};
-    \foreach \y/\name in {4/\texttt{CS\_N},3/\texttt{SCLK},2/\texttt{MOSI},1/\texttt{MISO},0/\texttt{LOAD}} {
-        \node[left] at (0,\y) {\name};
-    }
-    \draw[thick] (0,4.35) -- (1,4.35) -- (1,4.0) -- (12,4.0) -- (12,4.35) -- (13.5,4.35);
-    \draw[thick] (0,3.0) -- (1,3.0);
-    \foreach \x in {1.5,2.5,...,11.5} {
-        \draw[thick] (\x,3.0) -- ++(0.25,0.35) -- ++(0.5,0) -- ++(0.25,-0.35);
-    }
-    \draw[thick] (12,3.0) -- (13.5,3.0);
-    \draw[thick] (1,2.0) -- (2,2.3) -- (3,1.7) -- (4,2.3) -- (5,1.7) -- (6,2.3) -- (7,1.7) -- (8,2.3) -- (9,1.7) -- (10,2.3) -- (11,1.7) -- (12,2.0);
-    \node[above] at (2.5,2.45) {ADDR};
-    \node[above] at (6.5,2.45) {DATA[15:8]};
-    \node[above] at (10,2.45) {DATA[7:0]};
-    \draw[thick,dashed] (1,1.0) -- (12,1.0);
-    \draw[thick] (12.2,0.0) -- (12.6,0.35) -- (13.0,0.35) -- (13.4,0.0);
-    \draw[<->] (1,4.75) -- node[above]{16 bit frame} (12,4.75);
-\end{tikzpicture}
+\includegraphics[width=0.92\textwidth]{spi_seq.png}
 \caption{SPI寄存器配置协议时序图}
 \label{fig:sar_spi_timing}
 \end{figure}
@@ -245,33 +201,7 @@ end
 采样部分时序图适合放置在此处，因为该图直接对应正式采样、非交叠释放、保持以及第12位trial施加的先后关系，如图\ref{fig:sar_sample_timing}所示。
 \begin{figure}[H]
 \centering
-\begin{tikzpicture}[x=0.72cm,y=0.58cm,>=Latex]
-    \draw[->] (0,0) -- (15,0) node[right] {$t$};
-    \foreach \y/\name in {5/\texttt{clk},4/\texttt{vcm\_sw},3/\texttt{cap13},2/\texttt{pol[12]},1/\texttt{cmp\_en},0/\texttt{state}} {
-        \node[left] at (0,\y) {\name};
-    }
-    \foreach \x in {0.5,1.5,...,13.5} {
-        \draw[thick] (\x,5.0) -- ++(0.25,0.35) -- ++(0.5,0) -- ++(0.25,-0.35);
-    }
-    \draw[thick] (0,4.35) -- (5,4.35) -- (5,4.0) -- (14,4.0);
-    \draw[thick] (0,3.25) -- (5,3.25) -- (5,2.85) -- (14,2.85);
-    \node[above] at (2.5,3.3) {VIN};
-    \node[below] at (9.5,2.85) {VCM};
-    \draw[thick] (0,2.0) -- (8,2.0) -- (8,2.35) -- (14,2.35);
-    \node[above] at (9.4,2.35) {bit12 trial};
-    \draw[thick] (0,1.0) -- (9.5,1.0) -- (9.5,1.35) -- (11,1.35) -- (11,1.0) -- (14,1.0);
-    \draw (0,-0.35) rectangle (5,0.35);
-    \draw (5,-0.35) rectangle (8,0.35);
-    \draw (8,-0.35) rectangle (11,0.35);
-    \draw (11,-0.35) rectangle (14,0.35);
-    \node at (2.5,0) {\texttt{SAMPLE}};
-    \node at (6.5,0) {\texttt{TOP\_RELEASE}};
-    \node at (9.5,0) {\texttt{HOLD}};
-    \node at (12.5,0) {\texttt{SAR\_BIT}};
-    \draw[<->] (0,4.75) -- node[above]{正式采样} (5,4.75);
-    \draw[<->] (5,4.75) -- node[above]{非交叠} (8,4.75);
-    \draw[<->] (8,4.75) -- node[above]{建立/比较} (11,4.75);
-\end{tikzpicture}
+\includegraphics[width=0.92\textwidth]{sample_logic_seq.png}
 \caption{正式采样、保持与MSB trial时序图}
 \label{fig:sar_sample_timing}
 \end{figure}
