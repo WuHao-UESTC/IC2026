@@ -16,7 +16,7 @@ MSB可在输入端与$V_{\mathrm{CM}}$之间切换。
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入SAR ADC核心前仿原理图或testbench}}
+    \includegraphics[width=0.85\linewidth]{cfac.png}
     \caption{SAR ADC核心动态性能验证testbench}
     \label{fig:sar_adc_dynamic_tb}
 \end{figure}
@@ -34,21 +34,21 @@ $V_{\mathrm{in,diff}}=V_{\mathrm{in+}}-V_{\mathrm{in-}}$，并同步观察比较
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz输入下SAR ADC转换波形}}
+    \includegraphics[width=0.85\linewidth]{pga_gain_step_curve.png}
     \caption{SAR ADC在$27\,\mathrm{kHz}$输入下的动态转换波形}
     \label{fig:sar_adc_dynamic_wave_27k}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz输入下SAR ADC转换波形}}
+    \includegraphics[width=0.85\linewidth]{pga_gain_step_PVT_curve.png}
     \caption{SAR ADC在$100\,\mathrm{kHz}$输入下的动态转换波形}
     \label{fig:sar_adc_dynamic_wave_100k}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入预采样、逐位比较、数据打包与SPI更新时序图}}
+    \includegraphics[width=0.85\linewidth]{transient_response.png}
     \caption{SAR ADC转换控制逻辑与SPI输出时序}
     \label{fig:sar_adc_dynamic_timing}
 \end{figure}
@@ -75,7 +75,7 @@ $50\,\mathrm{MHz}$。PGA增益设置为8倍，PGA输出直接作为SAR ADC输入
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入TIA+PGA+SAR ADC系统动态仿真testbench}}
+    \includegraphics[width=0.85\linewidth]{block.system.png}
     \caption{接入TIA与PGA后的SAR ADC系统动态仿真testbench}
     \label{fig:system_dynamic_tb}
 \end{figure}
@@ -93,14 +93,14 @@ SAR ADC单独验证时一致。
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz电流输入下PGA输出与ADC输出波形}}
+    \includegraphics[width=0.85\linewidth]{pga_tran_curve.png}
     \caption{系统在$27\,\mathrm{kHz}$电流输入下的动态仿真波形}
     \label{fig:system_dynamic_wave_27k}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz电流输入下PGA输出与ADC输出波形}}
+    \includegraphics[width=0.85\linewidth]{fda_tran_curve.png}
     \caption{系统在$100\,\mathrm{kHz}$电流输入下的动态仿真波形}
     \label{fig:system_dynamic_wave_100k}
 \end{figure}
@@ -129,7 +129,7 @@ PD输出接入TIA输入端，后级依次连接PGA和SAR ADC。系统电源、SA
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入S5973 PD+TIA+PGA+SAR ADC混合仿真testbench}}
+    \includegraphics[width=0.85\linewidth]{pin_model.png}
     \caption{接入S5973光电二极管后的系统动态仿真testbench}
     \label{fig:pd_dynamic_tb}
 \end{figure}
@@ -147,14 +147,14 @@ $750\,\mathrm{mV}$。
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入27 kHz光输入下PD系统动态仿真波形}}
+    \includegraphics[width=0.85\linewidth]{pn_transient_response.png}
     \caption{PD混合系统在$27\,\mathrm{kHz}$光输入下的动态仿真波形}
     \label{fig:pd_dynamic_wave_27k}
 \end{figure}
 
 \begin{figure}[H]
     \centering
-    \fbox{\parbox[c][5cm][c]{0.85\linewidth}{\centering 此处插入100 kHz光输入下PD系统动态仿真波形}}
+    \includegraphics[width=0.85\linewidth]{pn_freq_response.png}
     \caption{PD混合系统在$100\,\mathrm{kHz}$光输入下的动态仿真波形}
     \label{fig:pd_dynamic_wave_100k}
 \end{figure}
